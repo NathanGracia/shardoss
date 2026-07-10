@@ -22,7 +22,7 @@ Le serveur local a sa propre DB (`server/db.sqlite`, gitignorée). Ne pas commit
 
 ## Rapport avec Memoss
 
-Shardoss est un service **séparé**, avec sa **propre base**, qui communique avec Memoss (`/opt/media-gallery`) par API — pas d'accès direct à la SQLite de Memoss. Voir le plan complet dans les notes de conception (whitepaper + plan d'implémentation) pour le détail des décisions.
+Shardoss est un service **séparé**, avec sa **propre base**, qui communique avec Memoss (`/opt/media-gallery`) par API — pas d'accès direct à la SQLite de Memoss. Voir [`docs/whitepaper.md`](docs/whitepaper.md) (conception produit) et [`docs/plan.md`](docs/plan.md) (architecture, modèle de données, décisions techniques) pour le détail complet — à lire avant toute modification touchant l'économie, la distribution de shards, ou le recalcul de tier.
 
 - **Memoss → Shardoss** : `POST /api/webhook/game-end`, header `x-shardoss-key`. Appelé en fire-and-forget par Memoss à la fin de chaque partie (`server/shardoss_client.py` côté media-gallery) — une panne de Shardoss ne doit jamais bloquer une partie Memoss.
 - **Shardoss → Memoss** : `GET {memoss_base_url}/api/shardoss/stats`, header `x-api-key` (clé dédiée Shardoss dans le `api_keys:` de Memoss, distincte de celle du feeder). Utilisé uniquement par le recalcul quotidien (`recalculation.py`).
