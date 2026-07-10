@@ -75,3 +75,40 @@ jobs:
             PR_NUMBER=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number')
           fi
           gh pr merge "$PR_NUMBER" --squash --delete-branch
+
+      # deploy.yml n'est PAS déclenché par ce merge : GitHub n'enchaîne pas
+      # les workflows sur un commit créé via le GITHUB_TOKEN par défaut
+      # (anti-boucle, comportement documenté — voir
+      # https://docs.github.com/en/actions/concepts/security/github_token).
+      # Plutôt que d'introduire un PAT juste pour contourner ça, le déploiement
+      # est fait ici directement, dans le même job. Étape identique à
+      # "Deploy via SSH" dans deploy.yml — dupliquée volontairement plutôt que
+      # factorisée, pour ne pas complexifier deploy.yml (qui doit rester
+      # déclenchable seul, pour un push humain direct ou un rerun manuel).
+      - name: Deploy via SSH
+        if: steps.claude.outputs.branch_name != ''
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key:      ${{ secrets.VPS_SSH_KEY }}
+          port:     ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ secrets.VPS_APP_DIR }}
+
+            echo "── Pull des dernières modifications ──"
+            git pull origin main
+
+            echo "── Rebuild et redémarrage Docker ──"
+            cd server
+            docker compose up -d --build --remove-orphans
+
+            echo "── Nettoyage images inutilisées ──"
+            docker image prune -f
+
+            echo "── Healthcheck ──"
+            sleep 5
+            curl -sf http://localhost:8000/api/whoami > /dev/null \
+              && echo "✓ Serveur opérationnel" \
+              || (echo "✗ Healthcheck échoué" && docker compose logs --tail=30 && exit 1)
