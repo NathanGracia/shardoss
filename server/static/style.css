@@ -276,6 +276,7 @@ main { padding: 0 0 40px; }
 .pop-counter.show { opacity: 1; transform: translateY(0); }
 
 .empty-state {
+  grid-column: 1 / -1;
   text-align: center;
   color: rgba(16, 22, 28, 0.5);
   padding: 80px 20px;
