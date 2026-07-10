@@ -169,15 +169,16 @@ async function revealShard(index, res) {
 function buildShatterSvg(fragments) {
   // Palette semi-transparente (pas opaque) : les éclats non révélés
   // laissent deviner la vidéo en dessous plutôt que la masquer complètement.
-  const palette = ['rgba(231,237,241,.62)', 'rgba(219,228,234,.62)', 'rgba(238,243,246,.62)', 'rgba(211,221,227,.62)', 'rgba(226,233,238,.62)'];
+  const palette = ['rgba(231,237,241,.82)', 'rgba(219,228,234,.82)', 'rgba(238,243,246,.82)', 'rgba(211,221,227,.82)', 'rgba(226,233,238,.82)'];
+  const stroke = 'rgba(255,255,255,.85)';
   const polys = fragments.pieces
     .map((p, i) => {
       const points = p.points.map(([x, y]) => `${(x * 100).toFixed(2)},${(y * 100).toFixed(2)}`).join(' ');
       if (p.revealed) {
-        return `<polygon points="${points}" fill="transparent" stroke="rgba(16,22,28,.45)" stroke-width="0.8"></polygon>`;
+        return `<polygon points="${points}" fill="transparent" stroke="${stroke}" stroke-width="0.8"></polygon>`;
       }
       const fill = palette[i % palette.length];
-      return `<polygon points="${points}" fill="${fill}" stroke="rgba(16,22,28,.45)" stroke-width="0.8"></polygon>`;
+      return `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="0.8"></polygon>`;
     })
     .join('');
   return `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${polys}</svg>`;
