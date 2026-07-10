@@ -1,5 +1,8 @@
 """
 Shardoss — point d'entrée FastAPI.
+
+Pipeline CI/CD (push main -> SSH -> docker compose up -d --build) vérifié
+fonctionnel le 2026-07-10.
 """
 import logging
 
