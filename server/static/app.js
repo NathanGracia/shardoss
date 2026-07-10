@@ -175,10 +175,10 @@ function buildShatterSvg(fragments) {
     .map((p, i) => {
       const points = p.points.map(([x, y]) => `${(x * 100).toFixed(2)},${(y * 100).toFixed(2)}`).join(' ');
       if (p.revealed) {
-        return `<polygon points="${points}" fill="transparent" stroke="${stroke}" stroke-width="0.8"></polygon>`;
+        return `<polygon points="${points}" fill="transparent" stroke="${stroke}" stroke-width="0.5"></polygon>`;
       }
       const fill = palette[i % palette.length];
-      return `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="0.8"></polygon>`;
+      return `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="0.5"></polygon>`;
     })
     .join('');
   return `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${polys}</svg>`;
