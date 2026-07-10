@@ -6,15 +6,34 @@
   <title>Shardoss</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <header>
-    <div class="logo">SHARDOSS</div>
+    <div class="logo-group">
+      <div class="logo-mark">
+        <span class="h"></span>
+        <span class="v"></span>
+        <span class="ring"></span>
+      </div>
+      <div class="logo-text">
+        <div class="logo">SHARDOSS</div>
+        <div class="logo-tagline">COLLECTION · LIVE FEED</div>
+      </div>
+    </div>
     <div class="economy-bar" id="economy-bar"></div>
     <div id="account-widget"></div>
   </header>
+
+  <div class="filter-tabs" id="filter-tabs">
+    <button class="filter-tab active" data-tier="all">TOUS</button>
+    <button class="filter-tab" data-tier="common">COMMON</button>
+    <button class="filter-tab" data-tier="rare">RARE</button>
+    <button class="filter-tab" data-tier="epic">EPIC</button>
+    <button class="filter-tab" data-tier="legendary">LEGENDARY</button>
+    <span class="shards-held hf-mono" id="shards-held"></span>
+  </div>
 
   <main>
     <div class="card-grid" id="card-grid">
@@ -22,7 +41,41 @@
     </div>
   </main>
 
-  <script src="account-widget.js?v=1"></script>
-  <script src="app.js?v=1"></script>
+  <!-- Modal booster -->
+  <div class="modal-overlay" id="booster-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title hf-cond">OUVERTURE · BOOSTER</div>
+          <div class="modal-subtitle" id="booster-modal-subtitle">5 shards, tiers indépendants</div>
+        </div>
+        <button class="modal-close" id="booster-modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="booster-modal-body"></div>
+      <div class="modal-footer">
+        <button class="modal-ok" id="booster-modal-ok">TERMINER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal notifications de tier -->
+  <div class="modal-overlay" id="tier-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title hf-cond">CHANGEMENTS DE TIER</div>
+          <div class="modal-subtitle">MISE À JOUR QUOTIDIENNE</div>
+        </div>
+        <button class="modal-close" id="tier-modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="tier-modal-body"></div>
+      <div class="modal-footer">
+        <button class="modal-ok" id="tier-modal-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="account-widget.js?v=2"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

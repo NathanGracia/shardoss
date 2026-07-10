@@ -1,5 +1,9 @@
 # ── Secrets & config locaux ───────────────────────────────────────────────────
-server/config.yaml          # Contient clés API/webhook et secrets partagés — NE JAMAIS COMMITTER
+# Contient clés API/webhook et secrets partagés — NE JAMAIS COMMITTER.
+# (Le commentaire doit rester sur sa propre ligne : un "# ..." en fin de ligne
+# de pattern n'est PAS un commentaire pour git, il fait partie du pattern
+# littéral — ce qui désactivait silencieusement cette règle.)
+server/config.yaml
 
 # ── Données serveur (volumes Docker) ─────────────────────────────────────────
 server/db.sqlite

@@ -23,4 +23,4 @@ Nécessite une instance Memoss locale ou distante joignable (voir `memoss_base_u
 
 ## Déploiement
 
-Docker Compose, port `3009` (host) → `8000` (container), domaine `shardoss.nathangracia.com`. CI/CD via GitHub Actions (`.github/workflows/deploy.yml`) : push sur `main` → SSH → `docker compose up -d --build`.
+Docker Compose, port `3011` (host) → `8000` (container), domaine `shardoss.nathangracia.com`. CI/CD via GitHub Actions (`.github/workflows/deploy.yml`) : push sur `main` → SSH → `docker compose up -d --build`.

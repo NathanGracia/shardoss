@@ -1,9 +1,15 @@
+name: shardoss  # évite la collision de nom de projet Compose : ce dossier s'appelle
+                # "server" comme celui de Memoss (/opt/media-gallery/server), et Compose
+                # dérive le nom de projet par défaut du nom de dossier — sans ce champ,
+                # `docker compose down`/`--remove-orphans` dans l'un des deux peut cibler
+                # les conteneurs de l'autre.
+
 services:
   shardoss:
     build: .
     restart: unless-stopped
     ports:
-      - "3009:8000"
+      - "3011:8000"
     volumes:
       # Config (non versionnée — contient les secrets)
       - ./config.yaml:/app/config.yaml:ro

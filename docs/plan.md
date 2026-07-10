@@ -18,7 +18,7 @@ Deux clarifications obtenues de l'utilisateur qui **corrigent** la lecture initi
 
 **Stack** : FastAPI + SQLModel + SQLite — même stack que Memoss/Quizzoss, cohérent avec le reste du VPS (mêmes réflexes ops, même story de déploiement), largement suffisant pour la charge (quelques tables, batch quotidien sur ~200 lignes, quelques dizaines de joueurs).
 
-**Port** : les ports 3001-3008 (agrapart y est sur 3008, `docker-proxy` confirmé via `lsof`), 3010, 8000, 8055, 8384, 8501-8503 sont **déjà pris** sur le VPS (vérifié via `ss -tlnp`, `ARCHITECTURE.md` est partiellement obsolète). **Port `3009`** pour Shardoss (host) → 8000 (container). Domaine `shardoss.nathangracia.com`.
+**Port** : les ports 3001-3010 (agrapart sur 3008, umami sur 3009, confirmés via `lsof`/`docker ps`), 8000, 8010, 8055, 8384, 8501-8503 sont **déjà pris** sur le VPS. **Correction post-plan** : 3009 avait été proposé initialement mais était déjà occupé par `umami` (raté au premier survol, qui ne portait que sur `ss -tlnp` sans croiser `docker ps`) — **port `3011`** retenu pour Shardoss (host) → 8000 (container). Domaine `shardoss.nathangracia.com`.
 
 **Structure** (`/opt/shardoss`, repo `NathanGracia/shardoss`) :
 ```
