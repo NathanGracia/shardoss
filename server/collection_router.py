@@ -22,6 +22,7 @@ def get_collection(claims: dict = Depends(require_account), session: Session = D
         select(PlayerCollection, MemeCard)
         .join(MemeCard, MemeCard.media_id == PlayerCollection.media_id)
         .where(PlayerCollection.account_uid == account_uid)
+        .order_by(PlayerCollection.id)  # ordre stable (première obtention) — sans ORDER BY, SQLite ne garantit rien
     ).all()
 
     cards = [

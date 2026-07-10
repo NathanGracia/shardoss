@@ -244,7 +244,10 @@ async function renderCard(cardData) {
   setupLoopPop(video, mediaEl, cardData.points_per_sec);
 
   if (!cardData.unlocked) {
-    video.style.display = 'none';
+    // La vidéo reste visible : les éclats "révélés" du puzzle sont
+    // transparents et laissent voir la vidéo en dessous (§5.2 du
+    // whitepaper — chaque shard obtenue révèle un morceau de la carte,
+    // pas rien). Seuls les éclats non révélés (gris opaque) la cachent.
     const pill = document.createElement('div');
     pill.className = 'locked-pill hf-mono';
     pill.textContent = 'VERROUILLÉ';
@@ -270,9 +273,8 @@ async function renderCard(cardData) {
   return el;
 }
 
-function renderGrid() {
+async function renderGrid() {
   const grid = document.getElementById('card-grid');
-  grid.innerHTML = '';
   const cards = activeFilter === 'all'
     ? currentCollection.cards
     : currentCollection.cards.filter((c) => c.tier === activeFilter);
@@ -283,7 +285,13 @@ function renderGrid() {
     }</div>`;
     return;
   }
-  cards.forEach(async (cardData) => grid.appendChild(await renderCard(cardData)));
+  // Chaque renderCard() fait plusieurs fetch async (meta média, fragments) —
+  // les résoudre en parallèle mais les insérer dans l'ordre d'origine du
+  // tableau, sinon l'ordre d'arrivée réseau détermine l'ordre à l'écran et
+  // les cartes semblent se réarranger à chaque rechargement.
+  const elements = await Promise.all(cards.map((cardData) => renderCard(cardData)));
+  grid.innerHTML = '';
+  elements.forEach((el) => grid.appendChild(el));
 }
 
 function setupFilterTabs() {
