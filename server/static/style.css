@@ -247,11 +247,19 @@ main { padding: 0 0 40px; }
 .bracket.tr { top: 10px; right: 10px; border-radius: 0 3px 0 0; border-top: 2px solid; border-right: 2px solid; }
 
 .meme-card-band {
-  display: flex;
+  /* grid plutôt que flex+space-between : avec des libellés de largeurs
+     différentes ("1.0 PTS/S" vs "×0.90"), space-between ne centre PAS
+     vraiment l'élément du milieu sur le centre du conteneur, juste avec un
+     espace égal entre les 3 — 1fr/auto/1fr garantit un vrai centrage du
+     badge peu importe la largeur des textes de part et d'autre. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   padding: 10px 14px;
 }
+.meme-card-band .pps { justify-self: start; }
+.meme-card-band .tier-badge { justify-self: center; }
+.meme-card-band .mult { justify-self: end; }
 .meme-card-band .pps { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; color: var(--ink); }
 .meme-card-band .mult { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: rgba(16, 22, 28, 0.45); }
 
@@ -286,6 +294,15 @@ main { padding: 0 0 40px; }
   z-index: 4;
 }
 .pop-counter.show { opacity: 1; transform: translateY(0); }
+
+.shard-count {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 6px;
+  color: rgba(16, 22, 28, 0.4);
+  border-top: 1px solid rgba(16, 22, 28, 0.08);
+}
 
 .empty-state {
   grid-column: 1 / -1;

@@ -261,14 +261,10 @@ async function renderCard(cardData) {
     } catch (_) { /* pas bloquant pour l'affichage de la vidéo */ }
   }
 
-  if (meta && meta.url) {
-    const dl = document.createElement('a');
-    dl.href = videoUrl;
-    dl.download = '';
-    dl.textContent = 'Télécharger';
-    dl.style.cssText = 'display:block;text-align:center;font-size:0.7rem;padding:6px;color:rgba(16,22,28,.4);font-family:\'IBM Plex Mono\',monospace;';
-    el.appendChild(dl);
-  }
+  const shardCount = document.createElement('div');
+  shardCount.className = 'shard-count hf-mono';
+  shardCount.textContent = `${cardData.shards_owned}/${cardData.shards_required} SHARDS`;
+  el.appendChild(shardCount);
 
   return el;
 }
