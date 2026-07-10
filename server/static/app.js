@@ -94,19 +94,76 @@ async function buyAndRevealBooster(boosterType) {
     const data = await r.json();
     document.getElementById('dolloss-value').textContent = Math.floor(data.dolloss).toLocaleString('fr-FR');
 
-    body.innerHTML = data.results.map((res) => `
-      <div class="booster-summary">
-        <span style="font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink)">${res.media_id.slice(0, 10)}…</span>
-        <span class="tier-badge ${res.tier}">${TIER_LABELS[res.tier] || res.tier}</span>
-        <span class="hf-mono" style="font-size:12px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
-      </div>
-    `).join('') || '<div class="empty-state">Aucune carte disponible — recalcul quotidien pas encore lancé.</div>';
+    if (!data.results.length) {
+      body.innerHTML = '<div class="empty-state">Aucune carte disponible — recalcul quotidien pas encore lancé.</div>';
+      okBtn.textContent = 'TERMINER';
+      await loadCollection();
+      return;
+    }
 
-    okBtn.textContent = 'TERMINER';
-    await loadCollection();
+    renderPackTap(data.results);
   } catch (_) {
     body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.6)">Erreur pendant l'ouverture.</div>`;
   }
+}
+
+function renderPackTap(results) {
+  const body = document.getElementById('booster-modal-body');
+  body.innerHTML = `<div style="text-align:center;padding:36px 0">
+    <div class="booster-pack" id="booster-pack-trigger">
+      <div class="booster-pack-shine"></div>
+      <div class="booster-pack-logo hf-cond">SHARDOSS</div>
+      <div class="booster-pack-tap hf-mono">TAP TO OPEN</div>
+    </div>
+  </div>`;
+  document.getElementById('booster-pack-trigger').addEventListener('click', () => renderShardBacks(results), { once: true });
+}
+
+function renderShardBacks(results) {
+  const body = document.getElementById('booster-modal-body');
+  const okBtn = document.getElementById('booster-modal-ok');
+  okBtn.textContent = 'TERMINER';
+
+  body.innerHTML = `<div class="shard-reveal-row">
+    ${results.map((res, i) => `
+      <div class="shard-back" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
+        <div class="shard-back-inner hf-mono">?</div>
+      </div>
+    `).join('')}
+  </div>`;
+
+  results.forEach((res, i) => {
+    document.getElementById(`shard-back-${i}`).addEventListener(
+      'click',
+      () => revealShard(i, res),
+      { once: true }
+    );
+  });
+}
+
+async function revealShard(index, res) {
+  const slot = document.getElementById(`shard-back-${index}`);
+  slot.classList.add('revealing');
+  slot.innerHTML = `<div class="hf-mono" style="font-size:10px;color:rgba(16,22,28,.4)">…</div>`;
+
+  let fragmentsHtml = '';
+  try {
+    const r = await fetch(`/api/collection/${res.media_id}/fragments`);
+    if (r.ok) fragmentsHtml = buildShatterSvg(await r.json());
+  } catch (_) { /* pas bloquant, on affiche quand même la carte sans le puzzle */ }
+
+  slot.classList.remove('revealing');
+  slot.classList.add('revealed');
+  slot.innerHTML = `
+    <div class="shard-back-media">${fragmentsHtml}</div>
+    <div class="shard-back-info">
+      <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
+      <span class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
+    </div>
+  `;
+
+  const allRevealed = document.querySelectorAll('.shard-back:not(.revealed)').length === 0;
+  if (allRevealed) await loadCollection();
 }
 
 function buildShatterSvg(fragments) {
