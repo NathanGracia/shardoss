@@ -6,6 +6,7 @@ qu'une fois — réutilisé par webhook_router, economy_router (boosters) et
 recalculation (descente de tier)).
 """
 import datetime
+import json
 from typing import Optional
 
 from sqlmodel import Session, func, select
@@ -173,10 +174,23 @@ def apply_shard_grant(
     card = get_or_create_meme_card(session, media_id)
     coll = get_or_create_collection(session, account_uid, media_id, card)
 
+    # Récupéré ici, avant toute mutation de CET appel : get_or_generate_fragments
+    # commit en interne au premier appel pour un media_id donné (cache miss) —
+    # appelé plus tard dans la fonction, ce commit couperait en deux la
+    # transaction de ce grant (coll persisté sans currency/ShardLog si un
+    # crash survient entre les deux). Import différé (pas en tête de fichier)
+    # : évite un cycle, shatter.py n'a pas besoin de connaître economy.py.
+    from shatter import get_or_generate_fragments
+
+    fragments = get_or_generate_fragments(session, media_id, card.tier, card.shards_required)
+    reveal_order = json.loads(fragments.reveal_order_json)
+    polygons = json.loads(fragments.polygons_json)
+
     remaining = max(coll.shards_required - coll.shards_owned, 0)
     applied = min(amount, remaining)
     overflow = amount - applied
 
+    shards_owned_before = coll.shards_owned
     coll.shards_owned += applied
     newly_unlocked = False
     if coll.shards_owned >= coll.shards_required and not coll.unlocked:
@@ -184,6 +198,15 @@ def apply_shard_grant(
         coll.unlocked_at = now
         newly_unlocked = True
     session.add(coll)
+
+    # Le polygone du/des éclat(s) qui vien(nen)t de passer de non-révélé à
+    # révélé — pour que le front puisse montrer, avant même le clic de
+    # révélation dans l'UI d'ouverture de booster, la vraie silhouette de
+    # l'éclat qui va apparaître sur la carte plutôt qu'un losange générique.
+    newly_revealed_points = None
+    for k in range(shards_owned_before, coll.shards_owned):
+        if k < len(reveal_order):
+            newly_revealed_points = polygons[reveal_order[k]]
 
     if overflow > 0:
         currency = get_or_create_currency(session, account_uid)
@@ -208,6 +231,7 @@ def apply_shard_grant(
         "overflow_to_dolloss": overflow,
         "unlocked": coll.unlocked,
         "newly_unlocked": newly_unlocked,
+        "newly_revealed_points": newly_revealed_points,
     }
 
 

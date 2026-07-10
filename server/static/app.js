@@ -119,17 +119,39 @@ function renderPackTap(results) {
   document.getElementById('booster-pack-trigger').addEventListener('click', () => renderShardBacks(results), { once: true });
 }
 
+// Gradients "possédé" par tier, repris du mockup (TIER_META.ownedBg) — le
+// legendary n'y était pas (aucun des 3 exemples du mockup n'était
+// legendary), extrapolé en mélange orange/cyan pour rester cohérent avec
+// le badge dual-tone du tier.
+const TIER_REVEAL_BG = {
+  common: 'linear-gradient(160deg,#eef1f3,#dbe1e5)',
+  rare: 'linear-gradient(160deg,#cdeaf2,#a9d9e6)',
+  epic: 'linear-gradient(160deg,#ffd8c2,#ffb083)',
+  legendary: 'linear-gradient(160deg,#ffe1c2,#c9ecf5)',
+};
+
+function clipPathFromPoints(points) {
+  return `polygon(${points.map(([x, y]) => `${(x * 100).toFixed(2)}% ${(y * 100).toFixed(2)}%`).join(', ')})`;
+}
+
 function renderShardBacks(results) {
   const body = document.getElementById('booster-modal-body');
   const okBtn = document.getElementById('booster-modal-ok');
   okBtn.textContent = 'TERMINER';
 
   body.innerHTML = `<div class="shard-reveal-row">
-    ${results.map((res, i) => `
-      <div class="shard-back${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
-        <div class="shard-back-inner hf-mono">?</div>
-      </div>
-    `).join('')}
+    ${results.map((res, i) => {
+      // La silhouette exacte de l'éclat qui va apparaître sur la carte est
+      // déjà connue (calculée côté serveur pendant l'achat) — le dos
+      // "mystère" prend directement cette forme au lieu d'un losange
+      // générique, pour ne pas changer de silhouette au moment du clic.
+      const clip = res.newly_revealed_points ? clipPathFromPoints(res.newly_revealed_points) : '';
+      return `
+        <div class="shard-back${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
+          <div class="shard-back-inner hf-mono"${clip ? ` style="clip-path:${clip}"` : ''}>?</div>
+        </div>
+      `;
+    }).join('')}
   </div>`;
 
   results.forEach((res, i) => {
@@ -144,18 +166,14 @@ function renderShardBacks(results) {
 async function revealShard(index, res) {
   const slot = document.getElementById(`shard-back-${index}`);
   slot.classList.add('revealing');
-  slot.innerHTML = `<div class="hf-mono" style="font-size:10px;color:rgba(16,22,28,.4)">…</div>`;
 
-  let fragmentsHtml = '';
-  try {
-    const r = await fetch(`/api/collection/${res.media_id}/fragments`);
-    if (r.ok) fragmentsHtml = buildShatterSvg(await r.json());
-  } catch (_) { /* pas bloquant, on affiche quand même la carte sans le puzzle */ }
+  const clip = res.newly_revealed_points ? clipPathFromPoints(res.newly_revealed_points) : '';
+  const bg = TIER_REVEAL_BG[res.tier] || TIER_REVEAL_BG.common;
 
   slot.classList.remove('revealing');
   slot.classList.add('revealed');
   slot.innerHTML = `
-    <div class="shard-back-media">${fragmentsHtml}</div>
+    <div class="shard-back-media" style="${clip ? `clip-path:${clip};` : ''}background:${bg}"></div>
     <div class="shard-back-info">
       <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
       <span class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
