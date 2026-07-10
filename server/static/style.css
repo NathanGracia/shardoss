@@ -215,8 +215,20 @@ main { padding: 0 0 40px; }
   align-items: center;
   justify-content: center;
 }
-.meme-card-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.meme-card-media svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.meme-card-media video {
+  /* absolute + inset:0 : sort la vidéo du flux flex de .meme-card-media,
+     sinon elle devient un item flex au même titre que .locked-pill et les
+     deux se partagent l'espace centré au lieu de s'empiler (bug vu en
+     prod : vidéo invisible/écrasée, pastille "VERROUILLÉ" décalée). */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 0;
+}
+.meme-card-media svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
 
 .locked-pill {
   position: relative;
