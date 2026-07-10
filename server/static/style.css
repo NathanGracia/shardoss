@@ -422,9 +422,22 @@ main { padding: 0 0 40px; }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.03); }
 }
-@keyframes shard-glow-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85), 0 0 24px 6px var(--glow); }
-  50% { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85), 0 0 36px 12px var(--glow); }
+/* Le halo n'anime JAMAIS box-shadow directement (le flou/spread ne sont pas
+   accélérés matériellement, ça saccadait à l'usage) — un pseudo-élément
+   séparé porte le halo (radial-gradient + filter:blur, posé une fois) et
+   c'est lui qu'on anime, uniquement en opacity/transform, les deux seules
+   propriétés fluides sur toutes les machines. */
+@keyframes shard-glow-breathe {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+/* Legendary : même souffle, + rotation continue + halo multicolore (conic-
+   gradient orange/teal) plutôt qu'une seule teinte — demande explicite,
+   la carte la plus rare doit visuellement se distinguer des 3 autres. */
+@keyframes shard-glow-spin-breathe {
+  0%   { transform: rotate(0deg)   scale(0.9); opacity: 0.45; }
+  50%  { transform: rotate(180deg) scale(1.12); opacity: 0.85; }
+  100% { transform: rotate(360deg) scale(0.9); opacity: 0.45; }
 }
 
 .booster-pack {
@@ -484,10 +497,19 @@ main { padding: 0 0 40px; }
   align-items: center;
   gap: 8px;
 }
+
+/* Silhouette d'éclat de verre — un vrai polygone irrégulier, pas un
+   rectangle arrondi — partagée par l'état "dos" (mystère) et l'état
+   "révélé" pour ne pas changer de forme au moment du clic. */
+.shard-back-inner,
+.shard-back-media {
+  width: 116px;
+  height: 104px;
+  clip-path: polygon(50% 0%, 84% 20%, 100% 58%, 78% 100%, 32% 96%, 0% 60%, 12% 18%);
+  position: relative;
+}
+
 .shard-back-inner {
-  width: 110px;
-  height: 90px;
-  border-radius: 12px;
   background: linear-gradient(160deg, #e7edf1, #d3dde3);
   display: flex;
   align-items: center;
@@ -495,15 +517,26 @@ main { padding: 0 0 40px; }
   font-size: 22px;
   color: rgba(16, 22, 28, 0.35);
   cursor: pointer;
-  animation: shard-glow-pulse 1.8s ease-in-out infinite;
 }
-.shard-back.revealing .shard-back-inner { cursor: default; animation: none; }
-.shard-back.revealed { animation: none; }
+.shard-back-inner::before {
+  content: '';
+  position: absolute;
+  inset: -26px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--glow) 0%, transparent 68%);
+  filter: blur(7px);
+  animation: shard-glow-breathe 2.2s ease-in-out infinite;
+}
+.shard-back.legendary .shard-back-inner::before {
+  background: conic-gradient(from 0deg, var(--orange), var(--teal), var(--orange), var(--teal), var(--orange));
+  animation: shard-glow-spin-breathe 3.2s linear infinite;
+}
+.shard-back.revealing .shard-back-inner { cursor: default; }
+.shard-back.revealing .shard-back-inner::before { animation: none; opacity: 0.3; }
+.shard-back.revealed .shard-back-inner::before { animation: none; }
+
 .shard-back-media {
-  width: 110px;
-  height: 90px;
-  border-radius: 12px;
-  position: relative;
   overflow: hidden;
   background: linear-gradient(160deg, #dde6ec, #c7d4dc);
 }

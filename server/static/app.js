@@ -126,7 +126,7 @@ function renderShardBacks(results) {
 
   body.innerHTML = `<div class="shard-reveal-row">
     ${results.map((res, i) => `
-      <div class="shard-back" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
+      <div class="shard-back${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
         <div class="shard-back-inner hf-mono">?</div>
       </div>
     `).join('')}
