@@ -5,14 +5,16 @@
 **Ne jamais push sans que l'utilisateur le demande explicitement** (la mise en ligne initiale de ce repo fait exception, demandée directement).
 **Toujours tester en local avant de push.**
 
+> ⚠️ **Sur le VPS de prod, `/opt/shardoss/server` EST le déploiement de prod** (bind-mount Docker direct sur ce dossier, pas de checkout séparé). `config.yaml`, `db.sqlite` et `shardoss.log` y sont les vrais fichiers de prod, pas des fixtures de dev — un incident réel s'est produit ici (2026-07-10) : un `cp config.yaml.example config.yaml` + test local a écrasé le config.yaml de prod, puis le nettoyage (`rm -f config.yaml db.sqlite ...`) l'a supprimé avec la vraie DB, causant une coupure. Si tu es sur ce VPS (pas un checkout séparé) : teste dans un dossier temporaire copié à part (`cp -r /opt/shardoss/server /tmp/shardoss-test`), jamais en place. Un vrai checkout de dev séparé n'a de sens que sur une autre machine.
+
 ```bash
-# Lancer le serveur local
+# Lancer le serveur local (sur une VRAIE machine de dev séparée du VPS de prod)
 cd server && cp config.yaml.example config.yaml   # puis remplir les valeurs
 python main.py
 # → http://127.0.0.1:8000 (ou lancer via uvicorn directement, voir Dockerfile)
 ```
 
-Le serveur local a sa propre DB (`server/db.sqlite`, gitignorée). Ne pas committer `server/config.yaml`, `server/db.sqlite`, `server/shardoss.log`.
+Le serveur local a sa propre DB (`server/db.sqlite`, gitignorée) — **seulement si c'est un dossier distinct de la prod**, voir avertissement ci-dessus. Ne pas committer `server/config.yaml`, `server/db.sqlite`, `server/shardoss.log`.
 
 ## Stack
 
