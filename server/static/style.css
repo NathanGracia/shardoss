@@ -148,6 +148,7 @@ header {
   border-radius: 12px; padding: 8px; display: flex; flex-direction: column; min-width: 180px;
   box-shadow: 0 20px 44px rgba(16, 22, 28, 0.16); z-index: 30;
 }
+.account-widget-menu[hidden] { display: none; }
 .account-widget-menu a {
   color: var(--ink); text-decoration: none; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem;
 }
