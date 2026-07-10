@@ -30,7 +30,7 @@ shardoss/
     memoss_client.py         # httpx: pull GET /api/shardoss/stats sur Memoss
     webhook_router.py        # POST /api/webhook/game-end (Memoss → Shardoss)
     collection_router.py     # GET /api/collection, GET /api/collection/{media_id}/fragments, GET /api/summary (widget Memoss)
-    economy_router.py        # GET /api/boosters/price, POST /api/boosters/buy
+    economy_router.py        # GET /api/boosters/prices, POST /api/boosters/buy
     tiers_router.py          # GET /api/tiers/notifications
     economy.py                # apply_shard_grant() partagé (doublon/excédent → Dolloss), accrual
     recalculation.py          # batch quotidien : percentiles → tiers, préservation seuils, TierChangeLog
@@ -196,16 +196,19 @@ Démarré dans le lifespan FastAPI. Plus `POST /api/admin/recalculate` (gated `i
 
 ## 7. Boosters
 
-`GET /api/boosters/price` → `50 * 1.15 ** boosters_purchased_count` pour l'appelant.
+> **Révisé post-MVP** : 3 produits au choix (`economy.BOOSTER_TYPES`), pas un seul générique — voir whitepaper §6.1 pour le tableau des poids/prix. `GET /api/boosters/prices` (pluriel) retourne les 3 en une fois : `{common: {label, shards, price}, rare: {...}, epic: {...}}`.
 
-`POST /api/boosters/buy` :
+`GET /api/boosters/prices` → pour chaque type, `price_base[type] * 1.15 ** boosters_purchased_count` (compteur d'achats partagé entre les 3 types).
+
+`POST /api/boosters/buy` (body `{"booster_type": "common"|"rare"|"epic"}`) :
 1. Session cooloss requise (invités ne peuvent pas acheter).
-2. Accrual paresseux du solde avant de vérifier (voir accrual ci-dessous).
-3. Prix recalculé côté serveur (jamais un prix envoyé par le client) ; 402 si solde insuffisant.
-4. Débit du prix, incrément `boosters_purchased_count`.
-5. **5 tirages indépendants** : `random.choices(["common","rare","epic","legendary"], weights=[45,30,18,7], k=5)` — chaque tirage peut tomber sur un tier/media différent (confirmé par l'utilisateur).
-6. Par tirage : media aléatoire dans ce tier (`ORDER BY RANDOM() LIMIT 1`, correct à ~200 lignes), repli sur le tier non-vide le plus proche si le tier tiré est momentanément vide, `apply_shard_grant(..., amount=1, source="booster")`.
-7. Commit ; retour `{"ok": true, "dolloss": <solde>, "results": [{"media_id", "tier", "shard_applied": 1, "overflow_to_dolloss": ...}, ...]}` pour une animation de révélation par carte.
+2. 400 si `booster_type` invalide.
+3. Accrual paresseux du solde avant de vérifier (voir accrual ci-dessous).
+4. Prix recalculé côté serveur pour ce type (jamais un prix envoyé par le client) ; 402 si solde insuffisant.
+5. Débit du prix, incrément `boosters_purchased_count` (partagé, affecte le prix des 3 types au prochain achat).
+6. **N tirages indépendants** (N = `shards` du type acheté, 5/4/3) : `random.choices([...], weights=BOOSTER_TYPES[type]["weights"], k=N)` — chaque tirage peut tomber sur un tier/media différent, y compris un tier au-dessus ou en-dessous du "thème" du booster acheté (aucun poids à zéro dans aucune table, un Legendary reste toujours techniquement tirable même depuis un booster Common).
+7. Par tirage : media aléatoire dans ce tier (`ORDER BY RANDOM() LIMIT 1`, correct à ~200 lignes), repli sur le tier non-vide le plus proche si le tier tiré est momentanément vide, `apply_shard_grant(..., amount=1, source="booster")`.
+8. Commit ; retour `{"ok": true, "dolloss": <solde>, "booster_type": <type>, "results": [{"media_id", "tier", "shard_applied": 1, "overflow_to_dolloss": ...}, ...]}` pour une animation de révélation par carte.
 
 **Accrual passif** (`PlayerCurrency`) : paresseux, pas de boucle de tick serveur. Fonction unique `settle_accrual(account_uid, now)` dans `economy.py` : `dolloss += (now - last_accrual_at).total_seconds() * sum(points_per_sec des cartes débloquées)`, puis `last_accrual_at = now`. C'est ce qui rend les gains hors-ligne (§5.1) corrects gratuitement. Deux règles de correction importantes :
 

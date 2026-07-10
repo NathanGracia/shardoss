@@ -34,40 +34,58 @@ function renderEconomyBar(state) {
     </div>
     <button class="booster-buy" id="booster-buy-btn">+ ACHETER UN BOOSTER</button>
   `;
-  refreshBoosterPrice();
   document.getElementById('booster-buy-btn').addEventListener('click', openBoosterModal);
 }
 
-async function refreshBoosterPrice() {
-  try {
-    const r = await fetch('/api/boosters/price');
-    if (!r.ok) return;
-    const { price } = await r.json();
-    const btn = document.getElementById('booster-buy-btn');
-    if (btn) btn.textContent = `+ ACHETER UN BOOSTER — ${Math.ceil(price)}`;
-  } catch (_) { /* silencieux, non-bloquant */ }
-}
-
-function openBoosterModal() {
+async function openBoosterModal() {
   const modal = document.getElementById('booster-modal');
-  const body = document.getElementById('booster-modal-body');
   const subtitle = document.getElementById('booster-modal-subtitle');
   const okBtn = document.getElementById('booster-modal-ok');
-  subtitle.textContent = '5 shards, tiers indépendants — clique pour ouvrir';
-  body.innerHTML = `<div style="text-align:center;padding:24px 0">
-    <div class="hf-cond" style="font-size:15px;font-weight:600;letter-spacing:.04em;color:var(--ink);cursor:pointer;display:inline-block;padding:14px 28px;border-radius:12px;border:1px solid rgba(16,22,28,.15);background:rgba(255,255,255,.6)" id="booster-open-trigger">TAP TO OPEN</div>
-  </div>`;
+  subtitle.textContent = 'BOOSTERS DISPONIBLES';
   okBtn.textContent = 'FERMER';
   modal.hidden = false;
-  document.getElementById('booster-open-trigger').addEventListener('click', buyAndOpenBooster, { once: true });
+  await renderBoosterSelection();
 }
 
-async function buyAndOpenBooster() {
+async function renderBoosterSelection() {
+  const body = document.getElementById('booster-modal-body');
+  body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.5)" class="hf-mono">Chargement…</div>`;
+  try {
+    const r = await fetch('/api/boosters/prices');
+    if (!r.ok) throw new Error('prices fetch failed');
+    const prices = await r.json();
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        ${Object.entries(prices).map(([type, info]) => `
+          <div class="booster-option">
+            <div class="booster-option-icon hf-mono">PACK</div>
+            <div class="booster-option-label tier-badge ${type} hf-cond">${info.label}</div>
+            <div class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">${info.shards} shards</div>
+            <div class="hf-mono" style="font-size:15px;font-weight:500;color:var(--ink)">${Math.ceil(info.price)} <span style="font-size:10px;color:rgba(16,22,28,.4)">DOLLOSS</span></div>
+            <button class="booster-option-buy hf-cond" data-type="${type}">ACHETER</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    body.querySelectorAll('.booster-option-buy').forEach((btn) => {
+      btn.addEventListener('click', () => buyAndRevealBooster(btn.dataset.type));
+    });
+  } catch (_) {
+    body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.6)">Impossible de charger les boosters.</div>`;
+  }
+}
+
+async function buyAndRevealBooster(boosterType) {
   const body = document.getElementById('booster-modal-body');
   const okBtn = document.getElementById('booster-modal-ok');
   body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.5)" class="hf-mono">Ouverture…</div>`;
   try {
-    const r = await fetch('/api/boosters/buy', { method: 'POST' });
+    const r = await fetch('/api/boosters/buy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booster_type: boosterType }),
+    });
     if (r.status === 402) {
       body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.6)">Solde de Dolloss insuffisant.</div>`;
       return;
@@ -86,7 +104,6 @@ async function buyAndOpenBooster() {
 
     okBtn.textContent = 'TERMINER';
     await loadCollection();
-    refreshBoosterPrice();
   } catch (_) {
     body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.6)">Erreur pendant l'ouverture.</div>`;
   }

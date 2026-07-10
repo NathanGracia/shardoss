@@ -346,3 +346,44 @@ main { padding: 0 0 40px; }
 
 .booster-summary { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(16, 22, 28, 0.08); }
 .booster-summary:last-child { border-bottom: none; }
+
+.modal-card--wide { width: 640px; }
+
+.booster-option {
+  border-radius: 16px;
+  border: 1px solid rgba(16, 22, 28, 0.14);
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 10px;
+  text-align: center;
+}
+.booster-option-icon {
+  width: 100%;
+  height: 70px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #e7edf1, #d3dde3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(16, 22, 28, 0.4);
+}
+.booster-option-label { font-size: 12px; }
+.booster-option-buy {
+  margin-top: auto;
+  width: 100%;
+  padding: 9px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.booster-option-buy:hover { opacity: 0.9; }

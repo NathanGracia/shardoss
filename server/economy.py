@@ -17,10 +17,35 @@ SHARDS_REQUIRED = {"common": 3, "rare": 6, "epic": 12, "legendary": 24}
 QUALITY_MULTIPLIER_MIN = 0.8
 QUALITY_MULTIPLIER_MAX = 1.5
 
-BOOSTER_PRICE_BASE = 50.0
-BOOSTER_PRICE_GROWTH = 1.15
-BOOSTER_SHARDS_PER_PURCHASE = 5
-BOOSTER_TIER_WEIGHTS = {"common": 45, "rare": 30, "epic": 18, "legendary": 7}
+BOOSTER_PRICE_GROWTH = 1.15  # appliqué au prix de base de CHAQUE type, sur le compteur d'achats partagé
+
+# Trois produits de booster au choix (achat, pas juste ouverture) : moins de
+# shards mais de meilleures cotes à mesure qu'on monte en gamme — le nom du
+# booster ("epic") n'exclut jamais les autres tiers du tirage, il déplace
+# juste la pondération. Le tier "common" du tirage reste toujours possible
+# même sur le booster "epic", et inversement le legendary reste toujours
+# techniquement possible même sur le booster "common" (juste rare) —
+# contrainte explicite de l'utilisateur, pas un oubli.
+BOOSTER_TYPES = {
+    "common": {
+        "label": "Common",
+        "shards": 5,
+        "price_base": 50.0,
+        "weights": {"common": 45, "rare": 30, "epic": 18, "legendary": 7},
+    },
+    "rare": {
+        "label": "Rare",
+        "shards": 4,
+        "price_base": 90.0,
+        "weights": {"common": 25, "rare": 35, "epic": 27, "legendary": 13},
+    },
+    "epic": {
+        "label": "Epic",
+        "shards": 3,
+        "price_base": 160.0,
+        "weights": {"common": 10, "rare": 25, "epic": 40, "legendary": 25},
+    },
+}
 
 # Cumulatif, dans cet ordre — cf. whitepaper §2.1 (top 5% / 15% suivants / 30% suivants / reste)
 TIER_PERCENTILE_CUTOFFS = [("legendary", 0.05), ("epic", 0.20), ("rare", 0.50)]
@@ -215,5 +240,6 @@ def convert_excess_to_dolloss(
     )
 
 
-def booster_price(boosters_purchased_count: int) -> float:
-    return BOOSTER_PRICE_BASE * (BOOSTER_PRICE_GROWTH ** boosters_purchased_count)
+def booster_price(booster_type: str, boosters_purchased_count: int) -> float:
+    base = BOOSTER_TYPES[booster_type]["price_base"]
+    return base * (BOOSTER_PRICE_GROWTH ** boosters_purchased_count)

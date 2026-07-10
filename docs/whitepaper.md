@@ -135,26 +135,27 @@ Dolloss est la monnaie unique du jeu, alimentée par deux sources :
 
 ### 6.1 Boosters
 
-Un booster s'achète en Dolloss et donne 5 shards, réparties par tirage pondéré par tier (5 tirages indépendants — confirmé avec l'utilisateur, chaque tirage peut tomber sur un média et une rareté différents) :
+> **Révisé post-MVP** (retour utilisateur après la première version) : le modèle initial n'avait qu'un seul type de booster. Il en existe désormais **trois, au choix à l'achat** — moins de shards mais de meilleures cotes en montant en gamme. Chaque tirage de tier reste indépendant (peut tomber sur un média et une rareté différents dans le même booster), et le nom d'un booster ne restreint jamais le tirage à ce tier : un Legendary reste techniquement possible même depuis le booster Common (rare, mais jamais exclu) — contrainte explicite de conception.
 
-| Tier | Poids du tirage |
-|---|---|
-| Common | 45% |
-| Rare | 30% |
-| Epic | 18% |
-| Legendary | 7% |
+| Booster | Shards | Common | Rare | Epic | Legendary |
+|---|---|---|---|---|---|
+| Common | 5 | 45% | 30% | 18% | 7% |
+| Rare | 4 | 25% | 35% | 27% | 13% |
+| Epic | 3 | 10% | 25% | 40% | 25% |
 
-Pondération volontairement peu sévère sur le Legendary : le seuil de 24 shards requis pour débloquer un meme Legendary suffit déjà à le rendre rare, pas besoin d'un tirage trop punitif en plus.
+Le booster Common reprend la pondération d'origine du MVP (poids volontairement peu sévère sur le Legendary : le seuil de 24 shards requis pour le débloquer suffit déjà à le rendre rare). Les boosters Rare et Epic déplacent progressivement la pondération vers le haut du tableau, sans jamais mettre un poids à zéro.
+
+Voir `economy.BOOSTER_TYPES` dans le repo pour les valeurs exactes utilisées (source de vérité — ce tableau peut dériver si les constantes sont retunées sans mise à jour du doc).
 
 ### 6.2 Prix scalant
 
-Le prix d'un booster augmente à chaque achat, formule classique d'idle game :
+Le prix de chaque type de booster augmente à chaque achat, formule classique d'idle game — un seul compteur d'achats partagé entre les 3 types (`boosters_purchased_count`), mais un prix de base différent par type :
 
 ```
-prix = prix_base × taux_croissance ^ (nombre de boosters déjà achetés)
+prix(type) = prix_base[type] × taux_croissance ^ (nombre total de boosters déjà achetés, tous types confondus)
 ```
 
-Exemple avec `prix_base = 50` Dolloss et `taux_croissance = 1.15` : 50, 57, 66, 76, 87 Dolloss pour les 5 premiers achats. Le rythme reste accessible en début de progression et ralentit naturellement à mesure que la collection avance.
+Avec `taux_croissance = 1.15` et les prix de base `Common = 50`, `Rare = 90`, `Epic = 160` Dolloss : les trois prix montent ensemble à chaque achat (peu importe le type acheté), ce qui évite qu'un joueur puisse indéfiniment n'acheter que le type le moins cher pour éviter l'inflation de prix.
 
 ## 7. Schéma de données
 

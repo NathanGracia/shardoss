@@ -1,18 +1,20 @@
 """
-Boosters : prix scalant + achat (5 tirages indépendants pondérés par tier,
-chacun peut tomber sur un média et une rareté différents — confirmé avec
-l'utilisateur, voir plan §7).
+Boosters : 3 produits au choix (Common/Rare/Epic — voir BOOSTER_TYPES dans
+economy.py), moins de shards mais de meilleures cotes en montant en gamme.
+Chaque tirage de tier est indépendant, peut tomber sur un média et une
+rareté différents — y compris un legendary depuis un booster common (rare,
+mais jamais exclu).
 """
 import random
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
 from auth import require_account
 from db import get_session
 from economy import (
-    BOOSTER_SHARDS_PER_PURCHASE,
-    BOOSTER_TIER_WEIGHTS,
+    BOOSTER_TYPES,
     apply_shard_grant,
     booster_price,
     get_or_create_currency,
@@ -43,20 +45,39 @@ def _pick_media_for_tier(session: Session, tier: str) -> tuple[str | None, str |
     return None, None
 
 
-@router.get("/price")
-def get_price(claims: dict = Depends(require_account), session: Session = Depends(get_session)):
+class BuyBoosterPayload(BaseModel):
+    booster_type: str = "common"
+
+
+@router.get("/prices")
+def get_prices(claims: dict = Depends(require_account), session: Session = Depends(get_session)):
     row = session.get(PlayerCurrency, claims["uid"])
     count = row.boosters_purchased_count if row else 0
-    return {"price": booster_price(count)}
+    return {
+        booster_type: {
+            "label": meta["label"],
+            "shards": meta["shards"],
+            "price": booster_price(booster_type, count),
+        }
+        for booster_type, meta in BOOSTER_TYPES.items()
+    }
 
 
 @router.post("/buy")
-def buy_booster(claims: dict = Depends(require_account), session: Session = Depends(get_session)):
+def buy_booster(
+    payload: BuyBoosterPayload,
+    claims: dict = Depends(require_account),
+    session: Session = Depends(get_session),
+):
     account_uid = claims["uid"]
+    booster_type = payload.booster_type
+    if booster_type not in BOOSTER_TYPES:
+        raise HTTPException(status_code=400, detail=f"type de booster inconnu: {booster_type}")
+    meta = BOOSTER_TYPES[booster_type]
 
     settle_accrual(session, account_uid)
     currency = get_or_create_currency(session, account_uid)
-    price = booster_price(currency.boosters_purchased_count)
+    price = booster_price(booster_type, currency.boosters_purchased_count)
     if currency.dolloss < price:
         raise HTTPException(status_code=402, detail="solde de Dolloss insuffisant")
 
@@ -65,9 +86,9 @@ def buy_booster(claims: dict = Depends(require_account), session: Session = Depe
     session.add(currency)
 
     tiers_drawn = random.choices(
-        list(BOOSTER_TIER_WEIGHTS.keys()),
-        weights=list(BOOSTER_TIER_WEIGHTS.values()),
-        k=BOOSTER_SHARDS_PER_PURCHASE,
+        list(meta["weights"].keys()),
+        weights=list(meta["weights"].values()),
+        k=meta["shards"],
     )
 
     results = []
@@ -80,4 +101,4 @@ def buy_booster(claims: dict = Depends(require_account), session: Session = Depe
         results.append(apply_shard_grant(session, account_uid, media_id, amount=1, source="booster"))
 
     session.commit()
-    return {"ok": True, "dolloss": currency.dolloss, "results": results}
+    return {"ok": True, "dolloss": currency.dolloss, "booster_type": booster_type, "results": results}
