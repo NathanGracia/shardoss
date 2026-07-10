@@ -1,0 +1,15 @@
+# Données — montées en volumes, pas dans l'image
+config.yaml
+db.sqlite
+shardoss.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Git
+.git/
+.gitignore

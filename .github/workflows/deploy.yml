@@ -1,0 +1,45 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:         # Déclenchement manuel depuis l'onglet Actions
+
+jobs:
+  deploy:
+    name: Deploy server to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key:      ${{ secrets.VPS_SSH_KEY }}
+          port:     ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ secrets.VPS_APP_DIR }}
+
+            echo "── Pull des dernières modifications ──"
+            git pull origin main
+
+            echo "── Rebuild et redémarrage Docker ──"
+            cd server
+            docker compose up -d --build --remove-orphans
+
+            echo "── Nettoyage images inutilisées ──"
+            docker image prune -f
+
+            echo "── Healthcheck ──"
+            sleep 5
+            curl -sf http://localhost:8000/api/whoami > /dev/null \
+              && echo "✓ Serveur opérationnel" \
+              || (echo "✗ Healthcheck échoué" && docker compose logs --tail=30 && exit 1)

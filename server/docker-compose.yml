@@ -1,0 +1,21 @@
+services:
+  shardoss:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3009:8000"
+    volumes:
+      # Config (non versionnée — contient les secrets)
+      - ./config.yaml:/app/config.yaml:ro
+      # SQLite — bind mount pour backup facile
+      - ./db.sqlite:/app/db.sqlite
+      # Logs
+      - ./shardoss.log:/app/shardoss.log
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/whoami')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

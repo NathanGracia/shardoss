@@ -1,0 +1,20 @@
+# ── Secrets & config locaux ───────────────────────────────────────────────────
+server/config.yaml          # Contient clés API/webhook et secrets partagés — NE JAMAIS COMMITTER
+
+# ── Données serveur (volumes Docker) ─────────────────────────────────────────
+server/db.sqlite
+server/shardoss.log
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,9 @@
+fastapi>=0.104
+uvicorn[standard]>=0.24
+sqlmodel>=0.0.14
+pyyaml>=6.0
+httpx>=0.25
+apscheduler>=3.10
+scipy>=1.11
+shapely>=2.0
+numpy>=1.26

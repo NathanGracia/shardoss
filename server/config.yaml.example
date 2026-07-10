@@ -1,0 +1,30 @@
+# ── Shardoss — Configuration serveur ───────────────────────────────────────
+# Copier ce fichier en config.yaml et remplir les valeurs. Jamais committé.
+
+db_path: db.sqlite
+
+host: 0.0.0.0
+port: 8000
+
+# Secret partagé avec cooloss (compte unifié) — DOIT être identique à
+# SHARED_SESSION_SECRET dans cooloss/.env et dans le config.yaml de Memoss.
+# Voir ~/docs/compte-unifie-cooloss.md.
+shared_session_secret: ""
+
+# Base URL du service Memoss, utilisée pour tirer les stats de popularité/
+# qualité (batch quotidien). Ex: http://memoss.nathangracia.com en prod,
+# http://127.0.0.1:8000 en local.
+memoss_base_url: ""
+
+# Clé API envoyée en header x-api-key vers GET /api/shardoss/stats de Memoss.
+# Doit correspondre à une entrée de la liste api_keys: du config.yaml de Memoss,
+# dédiée à Shardoss (ne pas réutiliser la clé du feeder).
+memoss_api_key: ""
+
+# Clé attendue en header x-shardoss-key sur les webhooks entrants
+# (POST /api/webhook/game-end) envoyés par Memoss en fin de partie.
+# Générer avec : python3 -c "import secrets; print(secrets.token_hex(32))"
+memoss_webhook_key: ""
+
+# Origine autorisée en CORS pour le widget opt-in intégré dans l'UI Memoss.
+memoss_origin: "https://memoss.nathangracia.com"
