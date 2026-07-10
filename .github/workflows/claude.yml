@@ -35,6 +35,22 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Par défaut l'action ne donne accès qu'à Read/Grep/Glob + git
+          # add/commit/push — pas moyen de réellement vérifier un changement
+          # (lancer le serveur, valider un fichier, taper un endpoint).
+          # Élargi en connaissance de cause : ce repo enchaîne déjà auto-merge
+          # sans revue humaine + auto-deploy SSH sur le VPS en prod, donc ceci
+          # ouvre de l'exécution de code arbitraire déclenchable par tout
+          # commentaire d'issue contenant "@claude" — mitigé par la
+          # vérification interne de l'action (n'agit que si l'auteur a un
+          # accès en écriture au repo, voir "Verified human actor" dans les
+          # logs de run), mais pas un vrai sandboxing. Choix explicite de
+          # l'utilisateur, pas une valeur par défaut à copier ailleurs.
+          # Pas de config.yaml en CI (jamais committé, contient des secrets)
+          # — db.py dégrade proprement sur config vide, donc `python3 main.py`
+          # démarre quand même (juste sans cooloss/Memoss fonctionnels).
+          claude_args: |
+            --allowedTools "Bash(python3:*),Bash(pip install:*),Bash(pip3 install:*),Bash(curl:*)"
 
       # Auto-merge, sans revue humaine — choix assumé pour ce repo perso à
       # faible enjeu (favicon, texte, petits correctifs). Claude ne merge
