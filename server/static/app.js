@@ -739,18 +739,21 @@ async function renderCard(cardData) {
   const shardCount = document.createElement('div');
   shardCount.className = 'shard-count hf-mono';
   shardCount.textContent = `${cardData.shards_owned}/${cardData.shards_required} SHARDS`;
-  el.appendChild(shardCount);
 
-  // Joker en stock : bouton pour l'appliquer directement sur CETTE carte —
-  // n'apparaît que sur les cartes verrouillées (inutile une fois débloquée)
-  // et seulement si le joueur en possède au moins une.
+  // Joker en stock : icône sur cette même ligne pour l'appliquer directement
+  // sur CETTE carte — n'apparaît que sur les cartes verrouillées (inutile
+  // une fois débloquée) et seulement si le joueur en possède au moins une.
   if (!cardData.unlocked && currentCollection && currentCollection.cooloss_shards > 0) {
+    shardCount.classList.add('has-cooloss-btn');
     const useBtn = document.createElement('button');
-    useBtn.className = 'cooloss-shard-use-btn hf-mono';
-    useBtn.innerHTML = '🃏 Utiliser une shard cooloss';
+    useBtn.className = 'cooloss-shard-use-icon';
+    useBtn.innerHTML = '🃏';
+    useBtn.title = 'Utiliser une shard cooloss';
     useBtn.addEventListener('click', () => useCoolossShardOnCard(cardData.media_id, useBtn));
-    el.appendChild(useBtn);
+    shardCount.appendChild(useBtn);
   }
+
+  el.appendChild(shardCount);
 
   return el;
 }

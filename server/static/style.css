@@ -349,6 +349,7 @@ main { padding: 0 0 40px; }
 .pop-counter.show { opacity: 1; transform: translateY(0); }
 
 .shard-count {
+  position: relative;
   text-align: center;
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -356,6 +357,9 @@ main { padding: 0 0 40px; }
   color: rgba(16, 22, 28, 0.4);
   border-top: 1px solid rgba(16, 22, 28, 0.08);
 }
+/* Réserve la place de l'icône jocker uniquement quand elle est présente —
+   sinon le padding décale le texte sur toutes les cartes sans raison. */
+.shard-count.has-cooloss-btn { padding-right: 32px; }
 
 .empty-state {
   grid-column: 1 / -1;
@@ -521,22 +525,29 @@ main { padding: 0 0 40px; }
   background: linear-gradient(160deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08));
 }
 
-/* Bouton "utiliser une shard cooloss" sur une carte verrouillée */
-.cooloss-shard-use-btn {
-  display: block;
-  width: 100%;
-  padding: 7px;
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-align: center;
-  color: var(--tier-cooloss-text);
-  background: rgba(168, 85, 247, 0.1);
+/* Icône "utiliser une shard cooloss" — sur la même ligne que le compteur de
+   shards d'une carte verrouillée, pas une bande à part. */
+.cooloss-shard-use-icon {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
   border: none;
-  border-top: 1px solid var(--tier-cooloss-border);
+  border-radius: 5px;
+  background: rgba(168, 85, 247, 0.15);
+  color: var(--tier-cooloss-text);
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
-.cooloss-shard-use-btn:hover { background: rgba(168, 85, 247, 0.18); }
-.cooloss-shard-use-btn:disabled { cursor: default; opacity: 0.6; }
+.cooloss-shard-use-icon:hover { background: rgba(168, 85, 247, 0.28); }
+.cooloss-shard-use-icon:disabled { cursor: default; opacity: 0.6; }
 
 /* ── Ouverture de booster : pack + révélation individuelle des shards ──── */
 @keyframes pack-pulse {
