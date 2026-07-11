@@ -32,6 +32,14 @@
   --tier-legendary-text: #10161c;
   --tier-legendary-border: #10161c;
   --tier-legendary-bg: linear-gradient(90deg, rgba(255, 90, 31, 0.15), rgba(63, 182, 211, 0.15));
+
+  /* Joker (shard cooloss) : violet emprunté à l'identité visuelle de
+     cooloss lui-même (badge "Habitué"), pour marquer que c'est un objet
+     à part, pas un 5e tier de rareté. */
+  --tier-cooloss-bracket: #a855f7;
+  --tier-cooloss-text: #7c3aed;
+  --tier-cooloss-border: rgba(168, 85, 247, 0.5);
+  --tier-cooloss-bg: rgba(168, 85, 247, 0.12);
 }
 
 * { box-sizing: border-box; }
@@ -145,6 +153,9 @@ header {
 }
 .dolloss-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); flex: none; }
 .dolloss-value { font-size: 13px; font-weight: 500; color: var(--ink); }
+
+.cooloss-shard-pill { border-color: var(--tier-cooloss-border); background: rgba(168, 85, 247, 0.08); }
+.cooloss-shard-icon-small { font-size: 13px; line-height: 1; }
 .dolloss-label { font-size: 11px; letter-spacing: 0.08em; color: rgba(16, 22, 28, 0.45); }
 
 .booster-buy {
@@ -317,6 +328,7 @@ main { padding: 0 0 40px; }
 .tier-badge.rare { color: var(--tier-rare-text); border-color: var(--tier-rare-border); background: var(--tier-rare-bg); }
 .tier-badge.epic { color: var(--tier-epic-text); border-color: var(--tier-epic-border); background: var(--tier-epic-bg); }
 .tier-badge.legendary { color: var(--tier-legendary-text); border-color: var(--tier-legendary-border); background: var(--tier-legendary-bg); }
+.tier-badge.cooloss { color: var(--tier-cooloss-text); border-color: var(--tier-cooloss-border); background: var(--tier-cooloss-bg); }
 
 .pop-counter {
   position: absolute;
@@ -465,6 +477,66 @@ main { padding: 0 0 40px; }
   cursor: pointer;
 }
 .booster-option-buy:hover { opacity: 0.9; }
+
+/* ── Shard cooloss : achat direct (joker, indépendant des 3 boosters) ──── */
+.cooloss-shard-shop {
+  margin-top: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--tier-cooloss-border);
+  background: rgba(168, 85, 247, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+}
+.cooloss-shard-shop-icon {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: rgba(168, 85, 247, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.cooloss-shard-shop-info { flex: 1; min-width: 0; }
+.cooloss-shard-shop-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--tier-cooloss-text);
+}
+.cooloss-shard-shop-buy { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.cooloss-shard-shop-buy .booster-option-buy { padding: 8px 16px; background: var(--tier-cooloss-text); }
+
+/* Icône de révélation quand un tirage de booster loot une shard cooloss au
+   lieu d'un tirage normal — même conteneur (.shard-back-media) que les
+   éclats de carte classiques, pour hériter du même comportement "assembled". */
+.cooloss-shard-reveal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  background: linear-gradient(160deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08));
+}
+
+/* Bouton "utiliser une shard cooloss" sur une carte verrouillée */
+.cooloss-shard-use-btn {
+  display: block;
+  width: 100%;
+  padding: 7px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-align: center;
+  color: var(--tier-cooloss-text);
+  background: rgba(168, 85, 247, 0.1);
+  border: none;
+  border-top: 1px solid var(--tier-cooloss-border);
+  cursor: pointer;
+}
+.cooloss-shard-use-btn:hover { background: rgba(168, 85, 247, 0.18); }
+.cooloss-shard-use-btn:disabled { cursor: default; opacity: 0.6; }
 
 /* ── Ouverture de booster : pack + révélation individuelle des shards ──── */
 @keyframes pack-pulse {

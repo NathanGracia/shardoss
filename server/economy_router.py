@@ -15,14 +15,18 @@ from auth import require_account
 from db import get_session
 from economy import (
     BOOSTER_TYPES,
+    COOLOSS_SHARD_LOOT_CHANCE,
+    apply_cooloss_shard,
     apply_shard_grant,
     booster_price,
+    cooloss_shard_price,
     get_or_create_currency,
     settle_accrual,
 )
 from models import MemeCard, PlayerCurrency
 
 router = APIRouter(prefix="/api/boosters", tags=["economy"])
+cooloss_shard_router = APIRouter(prefix="/api/cooloss-shard", tags=["economy"])
 
 # Ordre de repli si le tier tiré n'a (momentanément) aucune carte en base.
 _TIER_FALLBACK_ORDER = ["common", "rare", "epic", "legendary"]
@@ -92,14 +96,18 @@ def buy_booster(
     setattr(currency, count_field, getattr(currency, count_field) + 1)
     session.add(currency)
 
-    tiers_drawn = random.choices(
-        list(meta["weights"].keys()),
-        weights=list(meta["weights"].values()),
-        k=meta["shards"],
-    )
-
     results = []
-    for tier in tiers_drawn:
+    for _ in range(meta["shards"]):
+        # Chaque tirage individuel a une petite chance de devenir une shard
+        # cooloss (joker) au lieu du tirage pondéré par tier habituel — le
+        # "loot" du joker, indépendant du type de booster acheté.
+        if random.random() < COOLOSS_SHARD_LOOT_CHANCE:
+            currency.cooloss_shards += 1
+            session.add(currency)
+            results.append({"tier": "cooloss", "media_id": None, "cooloss_shards": currency.cooloss_shards})
+            continue
+
+        tier = random.choices(list(meta["weights"].keys()), weights=list(meta["weights"].values()), k=1)[0]
         media_id, actual_tier = _pick_media_for_tier(session, tier)
         if media_id is None:
             # Aucune carte du tout en base — ne devrait arriver qu'avant le
@@ -109,3 +117,54 @@ def buy_booster(
 
     session.commit()
     return {"ok": True, "dolloss": currency.dolloss, "booster_type": booster_type, "results": results}
+
+
+class ApplyCoolossShardPayload(BaseModel):
+    media_id: str
+
+
+@cooloss_shard_router.get("")
+def get_cooloss_shard_status(claims: dict = Depends(require_account), session: Session = Depends(get_session)):
+    currency = session.get(PlayerCurrency, claims["uid"])
+    count = currency.cooloss_shards if currency else 0
+    purchased = currency.cooloss_shards_purchased_count if currency else 0
+    return {"count": count, "price": cooloss_shard_price(purchased)}
+
+
+@cooloss_shard_router.post("/buy")
+def buy_cooloss_shard(claims: dict = Depends(require_account), session: Session = Depends(get_session)):
+    account_uid = claims["uid"]
+    settle_accrual(session, account_uid)
+    currency = get_or_create_currency(session, account_uid)
+    price = cooloss_shard_price(currency.cooloss_shards_purchased_count)
+    if currency.dolloss < price:
+        raise HTTPException(status_code=402, detail="solde de Dolloss insuffisant")
+
+    currency.dolloss -= price
+    currency.cooloss_shards_purchased_count += 1
+    currency.cooloss_shards += 1
+    session.add(currency)
+    session.commit()
+    return {
+        "ok": True,
+        "dolloss": currency.dolloss,
+        "cooloss_shards": currency.cooloss_shards,
+        "next_price": cooloss_shard_price(currency.cooloss_shards_purchased_count),
+    }
+
+
+@cooloss_shard_router.post("/apply")
+def use_cooloss_shard(
+    payload: ApplyCoolossShardPayload,
+    claims: dict = Depends(require_account),
+    session: Session = Depends(get_session),
+):
+    account_uid = claims["uid"]
+    try:
+        result = apply_cooloss_shard(session, account_uid, payload.media_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="aucune shard cooloss en stock")
+
+    currency = get_or_create_currency(session, account_uid)
+    session.commit()
+    return {"ok": True, "cooloss_shards": currency.cooloss_shards, "result": result}

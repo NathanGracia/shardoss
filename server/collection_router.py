@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from auth import get_account_claims, require_account
 from db import get_session
 from economy import live_dolloss_balance, sum_points_per_sec
-from models import MemeCard, PlayerCollection
+from models import MemeCard, PlayerCollection, PlayerCurrency
 from shatter import fragments_for_player, get_or_generate_fragments
 
 router = APIRouter(prefix="/api", tags=["collection"])
@@ -39,9 +39,12 @@ def get_collection(claims: dict = Depends(require_account), session: Session = D
         for coll, card in rows
     ]
 
+    currency = session.get(PlayerCurrency, account_uid)
+
     return {
         "dolloss": live_dolloss_balance(session, account_uid),
         "points_per_sec_total": sum_points_per_sec(session, account_uid),
+        "cooloss_shards": currency.cooloss_shards if currency else 0,
         "cards": cards,
     }
 

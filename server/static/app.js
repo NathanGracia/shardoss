@@ -235,6 +235,10 @@ function renderEconomyBar(state) {
       <span class="dolloss-value hf-mono" id="dolloss-value">${Math.floor(state.dolloss).toLocaleString('fr-FR')}</span>
       <span class="dolloss-label hf-cond">DOLLOSS</span>
     </div>
+    <div class="dolloss-pill cooloss-shard-pill" id="cooloss-shard-pill" title="Shards cooloss en stock — jokers utilisables sur n'importe quelle carte">
+      <span class="cooloss-shard-icon-small">🃏</span>
+      <span class="dolloss-value hf-mono" id="cooloss-shard-count">${state.cooloss_shards || 0}</span>
+    </div>
     <button class="booster-buy" id="booster-buy-btn">+ ACHETER UN BOOSTER</button>
   `;
   document.getElementById('booster-buy-btn').addEventListener('click', openBoosterModal);
@@ -255,9 +259,13 @@ async function renderBoosterSelection() {
   const body = document.getElementById('booster-modal-body');
   body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.5)" class="hf-mono">Chargement…</div>`;
   try {
-    const r = await fetch('/api/boosters/prices');
-    if (!r.ok) throw new Error('prices fetch failed');
-    const prices = await r.json();
+    const [pricesRes, coolossRes] = await Promise.all([
+      fetch('/api/boosters/prices'),
+      fetch('/api/cooloss-shard'),
+    ]);
+    if (!pricesRes.ok) throw new Error('prices fetch failed');
+    const prices = await pricesRes.json();
+    const cooloss = coolossRes.ok ? await coolossRes.json() : { count: 0, price: 400 };
 
     body.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
@@ -271,10 +279,24 @@ async function renderBoosterSelection() {
           </div>
         `).join('')}
       </div>
+      <div class="cooloss-shard-shop">
+        <div class="cooloss-shard-shop-icon">🃏</div>
+        <div class="cooloss-shard-shop-info">
+          <div class="cooloss-shard-shop-title hf-cond">SHARD COOLOSS</div>
+          <div class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">
+            Joker — s'applique sur n'importe quelle carte verrouillée. En stock : <span id="cooloss-shard-shop-owned">${cooloss.count}</span>
+          </div>
+        </div>
+        <div class="cooloss-shard-shop-buy">
+          <div class="hf-mono" id="cooloss-shard-shop-price" style="font-size:15px;font-weight:500;color:var(--ink)">${Math.ceil(cooloss.price)} <span style="font-size:11px;color:rgba(16,22,28,.4)">DOLLOSS</span></div>
+          <button class="booster-option-buy hf-cond" id="cooloss-shard-buy-btn">ACHETER</button>
+        </div>
+      </div>
     `;
     body.querySelectorAll('.booster-option-buy').forEach((btn) => {
       btn.addEventListener('click', () => buyAndRevealBooster(btn.dataset.type));
     });
+    document.getElementById('cooloss-shard-buy-btn').addEventListener('click', buyCoolossShard);
 
     // Vignette du pack : un meme au hasard de la rareté correspondante,
     // chargé après coup (pas bloquant pour l'affichage des prix/boutons).
@@ -295,6 +317,44 @@ async function renderBoosterSelection() {
     });
   } catch (_) {
     body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.6)">Impossible de charger les boosters.</div>`;
+  }
+}
+
+async function buyCoolossShard() {
+  const btn = document.getElementById('cooloss-shard-buy-btn');
+  if (!btn) return;
+  const prevText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const r = await fetch('/api/cooloss-shard/buy', { method: 'POST' });
+    if (r.status === 402) {
+      btn.textContent = 'INSUFFISANT';
+      setTimeout(() => { btn.textContent = prevText; btn.disabled = false; }, 1200);
+      return;
+    }
+    if (!r.ok) throw new Error('buy failed');
+    const data = await r.json();
+
+    document.getElementById('dolloss-value').textContent = Math.floor(data.dolloss).toLocaleString('fr-FR');
+    const countPill = document.getElementById('cooloss-shard-count');
+    if (countPill) countPill.textContent = data.cooloss_shards;
+    if (currentCollection) currentCollection.cooloss_shards = data.cooloss_shards;
+
+    const owned = document.getElementById('cooloss-shard-shop-owned');
+    if (owned) owned.textContent = data.cooloss_shards;
+    const priceEl = document.getElementById('cooloss-shard-shop-price');
+    if (priceEl) priceEl.innerHTML = `${Math.ceil(data.next_price)} <span style="font-size:11px;color:rgba(16,22,28,.4)">DOLLOSS</span>`;
+
+    btn.textContent = '✓ ACHETÉ';
+    setTimeout(() => { btn.textContent = prevText; btn.disabled = false; }, 900);
+
+    // Un nouveau bouton "utiliser une shard cooloss" peut désormais
+    // apparaître sur les cartes verrouillées de la grille.
+    renderGrid();
+  } catch (_) {
+    btn.textContent = prevText;
+    btn.disabled = false;
   }
 }
 
@@ -353,6 +413,11 @@ const TIER_REVEAL_BG = {
   legendary: 'linear-gradient(160deg,#ffe1c2,#c9ecf5)',
 };
 
+// Silhouette fixe pour le joker (shard cooloss) : pas de media_id associé,
+// donc pas de géométrie calculée côté serveur — on garde quand même
+// l'esthétique "éclat de verre" plutôt qu'un rectangle générique.
+const COOLOSS_SHARD_CLIP = 'polygon(50% 0%, 90% 20%, 100% 60%, 65% 100%, 15% 90%, 0% 35%)';
+
 // Les points d'un éclat sont stockés dans le référentiel de la carte ENTIÈRE
 // (0..1 sur toute la carte) — un éclat positionné dans un coin de la carte
 // n'occupe donc qu'une petite fraction de cet espace. Les normaliser à leur
@@ -399,7 +464,9 @@ function renderShardBacks(results) {
       // "mystère" prend directement cette forme au lieu d'un losange
       // générique, pour ne pas changer de silhouette au moment du clic.
       let clipStyle = '';
-      if (res.newly_revealed_points) {
+      if (res.tier === 'cooloss') {
+        clipStyle = ` style="clip-path:${COOLOSS_SHARD_CLIP}"`;
+      } else if (res.newly_revealed_points) {
         clipStyle = ` style="clip-path:${normalizedClipPath(res.newly_revealed_points, pieceBBox(res.newly_revealed_points))}"`;
       }
       // .shard-glow porte le MÊME clip-path que l'éclat : agrandi + flouté,
@@ -428,6 +495,35 @@ function renderShardBacks(results) {
 async function revealShard(index, res) {
   const slot = document.getElementById(`shard-back-${index}`);
   slot.classList.add('revealing');
+
+  if (res.tier === 'cooloss') {
+    // Pas de média associé — un joker ajouté au stock, rien à assembler en
+    // carte ensuite (pas de délai de 2s, on règle direct sur l'état final).
+    slot.classList.remove('revealing');
+    slot.classList.add('revealed', 'assembled');
+    const visual = slot.querySelector('.shard-visual');
+    visual.innerHTML = '';
+    const mediaWrap = document.createElement('div');
+    mediaWrap.className = 'shard-back-media cooloss-shard-reveal';
+    mediaWrap.textContent = '🃏';
+    visual.appendChild(mediaWrap);
+
+    const info = document.createElement('div');
+    info.className = 'shard-back-info';
+    info.innerHTML = `
+      <span class="tier-badge cooloss hf-cond">Cooloss</span>
+      <span class="hf-mono" style="font-size:12px;color:rgba(16,22,28,.5)">+1 en stock</span>
+    `;
+    slot.appendChild(info);
+
+    const countPill = document.getElementById('cooloss-shard-count');
+    if (countPill) countPill.textContent = res.cooloss_shards;
+    if (currentCollection) currentCollection.cooloss_shards = res.cooloss_shards;
+
+    const allRevealed = document.querySelectorAll('.shard-back:not(.revealed)').length === 0;
+    if (allRevealed) await loadCollection();
+    return;
+  }
 
   const meta = await fetchMediaMeta(res.media_id);
   const videoUrl = meta ? `${MEMOSS_ORIGIN}${meta.url}` : '';
@@ -640,6 +736,17 @@ async function renderCard(cardData) {
   shardCount.textContent = `${cardData.shards_owned}/${cardData.shards_required} SHARDS`;
   el.appendChild(shardCount);
 
+  // Joker en stock : bouton pour l'appliquer directement sur CETTE carte —
+  // n'apparaît que sur les cartes verrouillées (inutile une fois débloquée)
+  // et seulement si le joueur en possède au moins une.
+  if (!cardData.unlocked && currentCollection && currentCollection.cooloss_shards > 0) {
+    const useBtn = document.createElement('button');
+    useBtn.className = 'cooloss-shard-use-btn hf-mono';
+    useBtn.innerHTML = '🃏 Utiliser une shard cooloss';
+    useBtn.addEventListener('click', () => useCoolossShardOnCard(cardData.media_id, useBtn));
+    el.appendChild(useBtn);
+  }
+
   return el;
 }
 
@@ -678,6 +785,36 @@ function setupFilterTabs() {
       renderGrid();
     });
   });
+}
+
+async function useCoolossShardOnCard(mediaId, btn) {
+  const prevHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const r = await fetch('/api/cooloss-shard/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ media_id: mediaId }),
+    });
+    if (r.status === 400) {
+      // Stock vide (une autre carte a consommé la dernière entre-temps,
+      // par ex. dans un autre onglet) — recharge pour faire disparaître
+      // tous les boutons devenus invalides.
+      await loadCollection();
+      return;
+    }
+    if (!r.ok) throw new Error('apply failed');
+    const data = await r.json();
+    if (currentCollection) currentCollection.cooloss_shards = data.cooloss_shards;
+    const countPill = document.getElementById('cooloss-shard-count');
+    if (countPill) countPill.textContent = data.cooloss_shards;
+    // Recharge la grille entière : shards_owned/unlocked à jour pour cette
+    // carte, et les boutons "utiliser" des autres cartes disparaissent si
+    // le stock vient de tomber à 0.
+    await loadCollection();
+  } catch (_) {
+    if (btn) { btn.disabled = false; btn.innerHTML = prevHtml; }
+  }
 }
 
 async function loadCollection() {

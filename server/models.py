@@ -45,6 +45,12 @@ class PlayerCurrency(SQLModel, table=True):
     boosters_purchased_common: int = Field(default=0)
     boosters_purchased_rare: int = Field(default=0)
     boosters_purchased_epic: int = Field(default=0)
+    # Joker : shard non liée à un media_id particulier, appliquable sur
+    # n'importe quelle carte verrouillée au choix du joueur (achat direct ou
+    # loot depuis un booster classique) — voir apply_cooloss_shard() dans
+    # economy.py.
+    cooloss_shards: int = Field(default=0)
+    cooloss_shards_purchased_count: int = Field(default=0)
     last_accrual_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
 
 
@@ -54,7 +60,7 @@ class ShardLog(SQLModel, table=True):
     account_uid: int = Field(index=True)
     media_id: str = Field(index=True)
     amount: int  # peut être négatif pour un ajustement d'audit (ex. tier_shift_excess)
-    source: str = Field(index=True)  # "game_global_rank" | "booster" | "tier_shift_excess"
+    source: str = Field(index=True)  # "game_global_rank" | "booster" | "cooloss_shard" | "tier_shift_excess"
     game_room_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
 

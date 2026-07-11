@@ -39,6 +39,7 @@ if _memoss_origin:
 app.include_router(webhook_router.router)
 app.include_router(collection_router.router)
 app.include_router(economy_router.router)
+app.include_router(economy_router.cooloss_shard_router)
 app.include_router(tiers_router.router)
 app.include_router(scheduler.router)
 

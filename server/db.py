@@ -64,3 +64,13 @@ def init_db() -> None:
                 _conn.commit()
             except Exception:
                 pass
+
+    # cooloss_shards : stock de shards jokers (achat direct ou loot booster),
+    # applicables sur n'importe quelle carte — voir apply_cooloss_shard().
+    with engine.connect() as _conn:
+        for _col in ("cooloss_shards", "cooloss_shards_purchased_count"):
+            try:
+                _conn.execute(text(f"ALTER TABLE player_currency ADD COLUMN {_col} INTEGER DEFAULT 0"))
+                _conn.commit()
+            except Exception:
+                pass

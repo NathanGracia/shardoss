@@ -269,3 +269,37 @@ def convert_excess_to_dolloss(
 def booster_price(booster_type: str, boosters_purchased_count: int) -> float:
     base = BOOSTER_TYPES[booster_type]["price_base"]
     return base * (BOOSTER_PRICE_GROWTH ** boosters_purchased_count)
+
+
+# Shard "cooloss" : un joker, pas liée à un media_id — appliquable sur
+# n'importe quelle carte verrouillée au choix du joueur. Prix premium (une
+# shard cooloss garantit exactement la carte qu'on veut, contrairement à un
+# tirage de booster) ; même courbe de croissance que les boosters, sur son
+# propre compteur.
+COOLOSS_SHARD_PRICE_BASE = 400.0
+COOLOSS_SHARD_PRICE_GROWTH = 1.15
+
+# Probabilité, par tirage individuel dans N'IMPORTE QUEL booster (indépendant
+# du type acheté), qu'il se transforme en shard cooloss au lieu du tirage
+# pondéré par tier habituel — le "loot" évoqué à côté de l'achat direct.
+COOLOSS_SHARD_LOOT_CHANCE = 0.04
+
+
+def cooloss_shard_price(purchased_count: int) -> float:
+    return COOLOSS_SHARD_PRICE_BASE * (COOLOSS_SHARD_PRICE_GROWTH ** purchased_count)
+
+
+def apply_cooloss_shard(session: Session, account_uid: int, media_id: str) -> dict:
+    """
+    Dépense 1 shard cooloss du stock du joueur (lève ValueError si le stock
+    est vide) et l'applique sur `media_id` via apply_shard_grant — même
+    logique de cap/overflow/déblocage que n'importe quel autre grant. Ne
+    commit pas — au caller de gérer la transaction (même contrat que
+    apply_shard_grant).
+    """
+    currency = get_or_create_currency(session, account_uid)
+    if currency.cooloss_shards < 1:
+        raise ValueError("aucune shard cooloss en stock")
+    currency.cooloss_shards -= 1
+    session.add(currency)
+    return apply_shard_grant(session, account_uid, media_id, amount=1, source="cooloss_shard")
