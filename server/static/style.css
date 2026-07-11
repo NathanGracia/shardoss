@@ -265,6 +265,19 @@ main { padding: 0 0 40px; }
   height: 1px;
   background: rgba(16, 22, 28, 0.12);
 }
+/* Séparateur de phase (TERMINÉES / EN COURS) — un cran plus marqué que les
+   séparateurs de tier qu'il englobe, pour garder la hiérarchie lisible
+   sans basculer dans le bandeau lourd. */
+.grid-section-break--phase {
+  margin-top: 14px;
+  font-weight: 700;
+  color: rgba(16, 22, 28, 0.55);
+}
+.grid-section-break--phase::before,
+.grid-section-break--phase::after {
+  background: rgba(16, 22, 28, 0.2);
+}
+.grid-section-break--phase:first-child { margin-top: 0; }
 
 .meme-card {
   border-radius: 18px;

@@ -808,20 +808,24 @@ async function renderGrid() {
     return;
   }
 
-  // Tri par défaut : tiers du plus rare au plus commun (un retour à la
-  // ligne entre chaque groupe non-vide), et à l'intérieur d'un tier, la
-  // carte la plus proche d'être complétée en premier (le moins de shards
-  // manquantes) — une carte déjà terminée (0 manquante) arrive donc
-  // naturellement en tête de son tier. Array.sort est stable (ES2019) :
-  // à égalité de shards manquantes, l'ordre d'obtention d'origine sert de
-  // départage.
-  const groups = TIER_ORDER
-    .map((tier) => cardsRaw.filter((c) => c.tier === tier))
-    .filter((group) => group.length > 0);
-  groups.forEach((group) => {
-    group.sort((a, b) => (a.shards_required - a.shards_owned) - (b.shards_required - b.shards_owned));
-  });
-  const cards = groups.flat();
+  // Terminées d'abord (toutes tiers confondus), en cours ensuite — et à
+  // l'intérieur de CHACUNE des deux phases, regroupées par tier (du plus
+  // rare au plus commun), avec à l'intérieur d'un tier la carte la plus
+  // proche d'être complétée en premier (le moins de shards manquantes).
+  // Array.sort est stable (ES2019) : à égalité, l'ordre d'obtention
+  // d'origine sert de départage.
+  function groupByTier(list) {
+    return TIER_ORDER
+      .map((tier) => list.filter((c) => c.tier === tier))
+      .filter((group) => group.length > 0)
+      .map((group) => {
+        group.sort((a, b) => (a.shards_required - a.shards_owned) - (b.shards_required - b.shards_owned));
+        return group;
+      });
+  }
+  const completedGroups = groupByTier(cardsRaw.filter((c) => c.unlocked));
+  const inProgressGroups = groupByTier(cardsRaw.filter((c) => !c.unlocked));
+  const cards = [...completedGroups.flat(), ...inProgressGroups.flat()];
 
   // Chaque renderCard() fait plusieurs fetch async (meta média, fragments) —
   // les résoudre en parallèle mais les insérer dans l'ordre d'origine du
@@ -830,18 +834,27 @@ async function renderGrid() {
   const elements = await Promise.all(cards.map((cardData) => renderCard(cardData)));
   grid.innerHTML = '';
   let cardIndex = 0;
-  groups.forEach((group, gi) => {
-    if (gi > 0) {
-      const sep = document.createElement('div');
-      sep.className = 'grid-section-break hf-mono';
-      sep.textContent = (TIER_LABELS[group[0].tier] || group[0].tier).toUpperCase();
-      grid.appendChild(sep);
-    }
-    for (let i = 0; i < group.length; i++) {
-      grid.appendChild(elements[cardIndex]);
-      cardIndex++;
-    }
-  });
+
+  function renderPhase(groups, phaseLabel) {
+    if (!groups.length) return;
+    const phaseSep = document.createElement('div');
+    phaseSep.className = 'grid-section-break grid-section-break--phase hf-mono';
+    phaseSep.textContent = phaseLabel;
+    grid.appendChild(phaseSep);
+    groups.forEach((group) => {
+      const tierSep = document.createElement('div');
+      tierSep.className = 'grid-section-break hf-mono';
+      tierSep.textContent = (TIER_LABELS[group[0].tier] || group[0].tier).toUpperCase();
+      grid.appendChild(tierSep);
+      for (let i = 0; i < group.length; i++) {
+        grid.appendChild(elements[cardIndex]);
+        cardIndex++;
+      }
+    });
+  }
+
+  renderPhase(completedGroups, 'TERMINÉES');
+  renderPhase(inProgressGroups, 'EN COURS');
 }
 
 function setupFilterTabs() {
