@@ -19,22 +19,25 @@ function getMemeVolume() {
 // temps en survolant vite la grille.
 let audioFadeVideo = null;
 
+// setInterval plutôt que requestAnimationFrame : une chaîne de rAF relancée
+// depuis un handler d'événement souris "trusted" (un vrai survol, pas un
+// événement synthétique) s'est avérée ne jamais avancer dans certains
+// contextes (volume bloqué à 0 en boucle, vérifié à la trace) — setInterval
+// est un minuteur indépendant de la boucle de rendu et n'a pas ce problème.
 function fadeVideoVolume(video, target, duration = 250) {
-  if (video._fadeRAF) cancelAnimationFrame(video._fadeRAF);
+  if (video._fadeInterval) clearInterval(video._fadeInterval);
   const start = video.volume;
-  const startTime = performance.now();
+  const startTime = Date.now();
   if (target > 0) video.muted = false;
-  function step(now) {
-    const t = Math.min((now - startTime) / duration, 1);
+  video._fadeInterval = setInterval(() => {
+    const t = Math.min((Date.now() - startTime) / duration, 1);
     video.volume = start + (target - start) * t;
-    if (t < 1) {
-      video._fadeRAF = requestAnimationFrame(step);
-    } else {
-      video._fadeRAF = null;
+    if (t >= 1) {
+      clearInterval(video._fadeInterval);
+      video._fadeInterval = null;
       if (target === 0) video.muted = true;
     }
-  }
-  video._fadeRAF = requestAnimationFrame(step);
+  }, 16);
 }
 
 function hoverInMemeAudio(video) {
@@ -87,7 +90,7 @@ const videoObserver = new IntersectionObserver(
         // la souris bouge — mouseleave ne se déclenche alors jamais. Sans
         // ça, la vidéo reviendrait à l'écran encore audible au prochain
         // scroll, sans survol réel.
-        if (video._fadeRAF) cancelAnimationFrame(video._fadeRAF);
+        if (video._fadeInterval) clearInterval(video._fadeInterval);
         video.muted = true;
         video.volume = 0;
         if (audioFadeVideo === video) audioFadeVideo = null;
