@@ -8,6 +8,31 @@ let currentCollection = null;
 let activeFilter = 'all';
 const tierCursorKey = 'shardoss_tier_cursor';
 
+// La grille de collection charge une vidéo autoplay par carte touchée — au
+// delà d'une trentaine de cartes, les avoir TOUTES en lecture simultanée
+// fait chuter les perfs (décodage vidéo concurrent, pas juste du DOM).
+// Le whitepaper limitait déjà le chargement aux seules cartes touchées
+// (jamais les ~200 médias de la galerie), mais même ce sous-ensemble grossit
+// avec le temps. Plutôt que de la pagination (casse la sensation de
+// "parcourir sa collection"), un IntersectionObserver partagé ne charge/
+// joue que les vidéos réellement visibles (± une marge de pré-chargement),
+// et met en pause (sans décharger, pour un retour instantané au scroll)
+// celles qui sortent de l'écran.
+const videoObserver = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries) {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        if (!video.src && video.dataset.src) video.src = video.dataset.src;
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    }
+  },
+  { rootMargin: '400px 0px' }
+);
+
 async function fetchMediaMeta(mediaId) {
   if (mediaMetaCache.has(mediaId)) return mediaMetaCache.get(mediaId);
   try {
@@ -338,11 +363,12 @@ async function renderCard(cardData) {
   const videoUrl = meta ? `${MEMOSS_ORIGIN}${meta.url}` : '';
 
   const video = document.createElement('video');
-  video.src = videoUrl;
+  video.dataset.src = videoUrl; // src posé par videoObserver seulement quand la carte devient visible
   video.muted = true;
-  video.autoplay = true;
   video.playsInline = true;
+  video.preload = 'none';
   mediaEl.appendChild(video);
+  videoObserver.observe(video);
 
   const popCounter = document.createElement('div');
   popCounter.className = 'pop-counter';
@@ -390,6 +416,11 @@ async function renderCard(cardData) {
 
 async function renderGrid() {
   const grid = document.getElementById('card-grid');
+  // Change de filtre = la grille précédente va être jetée : détache ses
+  // vidéos de l'observer plutôt que de laisser des références à des
+  // éléments hors DOM s'accumuler dedans.
+  grid.querySelectorAll('video').forEach((v) => videoObserver.unobserve(v));
+
   const cards = activeFilter === 'all'
     ? currentCollection.cards
     : currentCollection.cards.filter((c) => c.tier === activeFilter);
