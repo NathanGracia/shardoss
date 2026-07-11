@@ -395,7 +395,12 @@ async function renderCard(cardData) {
   el.appendChild(band);
 
   if (cardData.unlocked) {
+    // Rebouclage manuel (pas l'attribut natif) pour pouvoir accrocher le
+    // "pop" de gain exactement à la fin de chaque boucle réelle.
     setupLoopPop(video, mediaEl, cardData.points_per_sec);
+  } else {
+    // Pas de toast à afficher ici : l'attribut natif suffit pour boucler.
+    video.loop = true;
   }
 
   if (!cardData.unlocked) {
