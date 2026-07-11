@@ -368,23 +368,28 @@ main { padding: 0 0 40px; }
 .tier-badge.legendary { color: var(--tier-legendary-text); border-color: var(--tier-legendary-border); background: var(--tier-legendary-bg); }
 .tier-badge.cooloss { color: var(--tier-cooloss-text); border-color: var(--tier-cooloss-border); background: var(--tier-cooloss-bg); }
 
+/* position:fixed + left/top posés en JS (getBoundingClientRect de la
+   carte, voir setupLoopPop) — pas descendant de .meme-card, qui a
+   overflow:hidden pour les coins arrondis de la vidéo : un toast qui
+   s'élève au-dessus de la carte y serait rogné s'il restait dedans. */
 .pop-counter {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 8px));
   background: rgba(16, 22, 28, 0.75);
-  color: #7ee9b0;
+  color: #ffd75e;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.72rem;
   padding: 2px 8px;
   border-radius: 6px;
+  white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-  transform: translateY(4px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
   pointer-events: none;
-  z-index: 4;
+  z-index: 200;
 }
-.pop-counter.show { opacity: 1; transform: translateY(0); }
+.pop-counter.show { opacity: 1; }
+/* S'élève en s'estompant plutôt que de disparaître sur place. */
+.pop-counter.show.leaving { opacity: 0; transform: translate(-50%, calc(-100% - 24px)); }
 
 .shard-count {
   position: relative;

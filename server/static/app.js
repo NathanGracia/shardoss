@@ -10,6 +10,11 @@ let currentCollection = null;
 let activeFilter = 'all';
 const tierCursorKey = 'shardoss_tier_cursor';
 
+// Toasts "+N" portés sur document.body (voir renderCard/setupLoopPop) —
+// suivis ici pour être explicitement nettoyés avant un re-render de la
+// grille, puisqu'ils ne sont pas des descendants de #card-grid.
+const activePopCounters = new Set();
+
 // ── Volume général ───────────────────────────────────────────────────────
 // Un seul réglage, partagé avec Memoss/Blindtoss/cooloss via le compte
 // (claims du token de session, voir cooloss/prisma/schema.prisma —
@@ -360,6 +365,7 @@ async function saveAdminConfig() {
   });
 
   const msg = document.getElementById('admin-form-message');
+  const prevBtnText = btn.textContent;
   btn.disabled = true;
   try {
     const r = await fetch('/api/admin/loot-config', {
@@ -375,11 +381,18 @@ async function saveAdminConfig() {
       }
       return;
     }
+    // Retour bien visible : le message en bas de modal peut être hors
+    // champ dans un formulaire long — le libellé du bouton, lui, est
+    // forcément sous les yeux au moment du clic.
+    btn.textContent = '✓ ENREGISTRÉ';
     if (msg) {
       msg.className = 'admin-saved';
-      msg.textContent = '✓ Enregistré — effectif immédiatement.';
-      setTimeout(() => { msg.textContent = ''; }, 2500);
+      msg.textContent = '✓ Réglages enregistrés — effectif immédiatement.';
     }
+    setTimeout(() => {
+      btn.textContent = prevBtnText;
+      if (msg) msg.textContent = '';
+    }, 2000);
   } catch (_) {
     if (msg) { msg.className = 'admin-error'; msg.textContent = 'Erreur réseau.'; }
   } finally {
@@ -676,7 +689,7 @@ async function revealShard(index, res) {
     const info = document.createElement('div');
     info.className = 'shard-back-info';
     info.innerHTML = `
-      <span class="tier-badge cooloss hf-cond">Cooloss</span>
+      <span class="tier-badge cooloss hf-cond">[Shard Cooloss]</span>
       <span class="hf-mono" style="font-size:12px;color:rgba(16,22,28,.5)">+1 en stock</span>
     `;
     slot.appendChild(info);
@@ -797,18 +810,35 @@ function buildShatterSvg(fragments) {
   return `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${polys}</svg>`;
 }
 
-function setupLoopPop(video, mediaEl, pointsPerSec) {
+function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
   // Pas d'attribut `loop` natif : avec `loop`, l'event `ended` ne se
   // déclenche jamais côté navigateur. On boucle manuellement pour pouvoir
   // accrocher le "pop" de gain à chaque fin de boucle réelle (whitepaper §5.1).
   video.addEventListener('ended', () => {
     const duration = video.duration || 0;
     const gain = Math.round(duration * pointsPerSec);
-    const counter = mediaEl.querySelector('.pop-counter');
     if (counter) {
+      // .meme-card a overflow:hidden (nécessaire pour les coins arrondis de
+      // la vidéo) — un toast positionné au-dessus de la carte y serait
+      // rogné s'il restait descendant de cet élément. counter vit donc en
+      // dehors, "téléporté" (position:fixed) au-dessus de mediaEl à chaque
+      // déclenchement via son rect live, pas rattaché au flux de la carte.
+      const rect = mediaEl.getBoundingClientRect();
+      counter.style.left = `${rect.left + rect.width / 2}px`;
+      counter.style.top = `${rect.top}px`;
+
+      // Timeouts d'un cycle précédent nettoyés au cas où deux boucles très
+      // courtes se chevauchent — sinon un ancien setTimeout peut retirer
+      // les classes en plein milieu de la nouvelle animation.
+      if (counter._popTimeout1) clearTimeout(counter._popTimeout1);
+      if (counter._popTimeout2) clearTimeout(counter._popTimeout2);
       counter.textContent = `+${gain}`;
+      counter.classList.remove('leaving');
       counter.classList.add('show');
-      setTimeout(() => counter.classList.remove('show'), 900);
+      counter._popTimeout1 = setTimeout(() => {
+        counter.classList.add('leaving'); // s'élève en s'estompant
+        counter._popTimeout2 = setTimeout(() => counter.classList.remove('show', 'leaving'), 500);
+      }, 700);
     }
     video.currentTime = 0;
     video.play().catch(() => {
@@ -866,7 +896,14 @@ async function renderCard(cardData) {
     popCounter = document.createElement('div');
     popCounter.className = 'pop-counter';
     popCounter.textContent = '+0';
-    mediaEl.appendChild(popCounter);
+    // Sur document.body, pas dans mediaEl : .meme-card a overflow:hidden,
+    // ça rognerait le toast qui doit s'élever au-dessus de la carte. Le
+    // positionnement réel se fait via getBoundingClientRect() à chaque
+    // déclenchement (voir setupLoopPop) — suivi manuel du nettoyage dans
+    // activePopCounters, sinon ces nœuds fuient hors du cycle de vie
+    // normal de la grille (grid.innerHTML = '' ne les toucherait pas).
+    document.body.appendChild(popCounter);
+    activePopCounters.add(popCounter);
   }
 
   el.appendChild(mediaEl);
@@ -883,7 +920,7 @@ async function renderCard(cardData) {
   if (cardData.unlocked) {
     // Rebouclage manuel (pas l'attribut natif) pour pouvoir accrocher le
     // "pop" de gain exactement à la fin de chaque boucle réelle.
-    setupLoopPop(video, mediaEl, cardData.points_per_sec);
+    setupLoopPop(video, mediaEl, popCounter, cardData.points_per_sec);
   } else {
     // Pas de toast à afficher ici : l'attribut natif suffit pour boucler.
     video.loop = true;
@@ -934,6 +971,11 @@ async function renderGrid() {
   // vidéos de l'observer plutôt que de laisser des références à des
   // éléments hors DOM s'accumuler dedans.
   grid.querySelectorAll('video').forEach((v) => videoObserver.unobserve(v));
+  // Les toasts "+N" vivent sur document.body (voir renderCard), pas comme
+  // descendants de #card-grid — grid.innerHTML='' plus bas ne les
+  // toucherait jamais, il faut les retirer explicitement.
+  activePopCounters.forEach((el) => el.remove());
+  activePopCounters.clear();
 
   const cardsRaw = activeFilter === 'all'
     ? currentCollection.cards
@@ -975,10 +1017,15 @@ async function renderGrid() {
 
   function renderPhase(groups, phaseLabel) {
     if (!groups.length) return;
-    const phaseSep = document.createElement('div');
-    phaseSep.className = 'grid-section-break grid-section-break--phase hf-mono';
-    phaseSep.textContent = phaseLabel;
-    grid.appendChild(phaseSep);
+    // Pas de label pour la phase "terminées" : sous-entendu (en tête de
+    // grille), l'ajouter alourdissait pour rien. "En cours" reste affiché,
+    // plus utile pour repérer où commence la partie pas encore complète.
+    if (phaseLabel) {
+      const phaseSep = document.createElement('div');
+      phaseSep.className = 'grid-section-break grid-section-break--phase hf-mono';
+      phaseSep.textContent = phaseLabel;
+      grid.appendChild(phaseSep);
+    }
     groups.forEach((group) => {
       const tierSep = document.createElement('div');
       tierSep.className = 'grid-section-break hf-mono';
@@ -991,7 +1038,7 @@ async function renderGrid() {
     });
   }
 
-  renderPhase(completedGroups, 'TERMINÉES');
+  renderPhase(completedGroups, null);
   renderPhase(inProgressGroups, 'EN COURS');
 }
 
@@ -1007,6 +1054,10 @@ function setupFilterTabs() {
 }
 
 async function useCoolossShardOnCard(mediaId, btn) {
+  // Ressource limitée (achetée ou lootée) — un mauvais clic ne doit pas la
+  // dépenser sans confirmation.
+  if (!confirm('Utiliser une shard cooloss sur cette carte ?')) return;
+
   const prevHtml = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
