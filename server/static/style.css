@@ -682,12 +682,105 @@ main { padding: 0 0 40px; }
   color: rgba(16, 22, 28, 0.5);
 }
 
-.shard-reveal-row {
+/* ── Ouverture de booster : reveal spotlight séquentiel ──────────────────
+   Un seul éclat à la fois, mis en scène sur fond assombri façon table de
+   casino — le tirage le plus rare est toujours gardé pour la fin (tri fait
+   côté JS dans renderShardBacks, pas ici). */
+.modal-card--spotlight { background: rgba(12, 14, 18, 0.94); }
+.modal-card--spotlight .modal-header { border-bottom-color: rgba(255, 255, 255, 0.1); }
+.modal-card--spotlight .modal-title { color: rgba(255, 255, 255, 0.9); }
+.modal-card--spotlight .modal-subtitle { color: rgba(255, 255, 255, 0.4); }
+.modal-card--spotlight .modal-close { color: rgba(255, 255, 255, 0.6); border-color: rgba(255, 255, 255, 0.18); }
+.modal-card--spotlight .modal-ok { background: #fff; color: var(--ink); }
+/* Remplace le rgba(16,22,28,.5) inline pensé pour fond clair (voir
+   revealShard/assembleCard dans app.js) — illisible sur le fond sombre du
+   spotlight. */
+.shard-info-sub { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+
+.spotlight-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  perspective: 1000px;
+}
+
+.spotlight-dots {
   display: flex;
   justify-content: center;
-  gap: 20px;
   flex-wrap: wrap;
-  padding: 16px 0;
+  gap: 10px;
+  padding-top: 4px;
+}
+.spotlight-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+.spotlight-dot.active {
+  border-color: rgba(255, 255, 255, 0.55);
+  transform: scale(1.2);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+}
+.spotlight-dot.done {
+  background: var(--dot-glow);
+  border-color: transparent;
+}
+
+/* Le "flip" est une bascule d'échelle (pas un vrai volume 3D à deux faces) :
+   le contenu est échangé pile au point où l'éclat est vu par la tranche
+   (invisible), donc l'illusion tient sans le coût d'un double-face avec
+   backface-visibility — cohérent avec la contrainte "opacity/transform
+   seulement" déjà suivie ailleurs dans ce fichier pour rester fluide. */
+.shard-back.spotlight-active { width: 280px; }
+.shard-back.spotlight-active.assembled { width: 210px; }
+.shard-back.spotlight-active .shard-visual {
+  width: 260px;
+  height: 220px;
+  transition: transform 0.32s cubic-bezier(.4, 0, .2, 1);
+}
+.shard-back.spotlight-active.flipping .shard-visual { transform: rotateY(90deg); }
+.shard-back.spotlight-active .shard-back-inner { font-size: 30px; }
+
+.spotlight-flash {
+  position: absolute;
+  inset: -60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--flash-color, #fff) 0%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+.spotlight-flash.pulse { animation: spotlight-flash-pulse 0.5s ease-out; }
+@keyframes spotlight-flash-pulse {
+  0% { opacity: 0.9; transform: scale(0.55); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+.spotlight-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--particle-color, #fff);
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition: transform 0.7s cubic-bezier(.2, .7, .3, 1), opacity 0.7s ease;
+  pointer-events: none;
+}
+.spotlight-particle.burst {
+  opacity: 0;
+  transform: translate(calc(-50% + var(--px)), calc(-50% + var(--py)));
 }
 
 .shard-back {

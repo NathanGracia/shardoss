@@ -653,55 +653,153 @@ function cropVideoToBBox(video, bbox) {
   video.style.top = `${(-bbox.minY / h) * 100}%`;
 }
 
-function renderShardBacks(results) {
-  document.getElementById('booster-modal-card').className = 'modal-card modal-card--reveal';
-  const body = document.getElementById('booster-modal-body');
-  const okBtn = document.getElementById('booster-modal-ok');
-  okBtn.textContent = 'TERMINER';
+// Ordre d'affichage du reveal spotlight : le tirage le plus rare arrive
+// TOUJOURS en dernier (suspense construit par l'ordre, pas par le hasard du
+// tirage réel) — demande explicite du redesign "spotlight séquentiel".
+const RARITY_ORDER = { common: 0, rare: 1, epic: 2, legendary: 3, cooloss: 4 };
 
-  body.innerHTML = `<div class="shard-reveal-row">
-    ${results.map((res, i) => {
-      // La silhouette exacte de l'éclat qui va apparaître sur la carte est
-      // déjà connue (calculée côté serveur pendant l'achat) — le dos
-      // "mystère" prend directement cette forme au lieu d'un losange
-      // générique, pour ne pas changer de silhouette au moment du clic.
-      let clipStyle = '';
-      if (res.tier === 'cooloss') {
-        clipStyle = ` style="clip-path:${COOLOSS_SHARD_CLIP}"`;
-      } else if (res.newly_revealed_points) {
-        clipStyle = ` style="clip-path:${normalizedClipPath(res.newly_revealed_points, pieceBBox(res.newly_revealed_points))}"`;
-      }
-      // .shard-glow porte le MÊME clip-path que l'éclat : agrandi + flouté,
-      // ça donne une lueur qui épouse le contour réel de l'éclat plutôt
-      // qu'un cercle générique posé derrière.
-      return `
-        <div class="shard-back${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
-          <div class="shard-visual">
-            <div class="shard-glow"${clipStyle}></div>
-            <div class="shard-back-inner hf-mono"${clipStyle}>?</div>
-          </div>
-        </div>
-      `;
-    }).join('')}
-  </div>`;
+// Temps où l'éclat reste "sur la tranche" (invisible, voir .flipping en CSS)
+// avant que le contenu révélé soit posé dessous — plus long pour les tiers
+// rares, ça laisse le suspense monter avant l'impact.
+const REVEAL_HOLD_MS = { common: 200, rare: 260, epic: 340, legendary: 520, cooloss: 260 };
 
-  results.forEach((res, i) => {
-    document.getElementById(`shard-back-${i}`).addEventListener(
-      'click',
-      () => revealShard(i, res),
-      { once: true }
-    );
-  });
+// Carillon de révélation synthétisé (Web Audio, pas de fichier son à
+// charger) — un arpège de plus en plus riche/aigu selon la rareté, calé sur
+// le volume général partagé (voir getSharedVolume) pour ne jamais surprendre
+// quelqu'un qui a mis le son bas.
+let revealAudioCtx = null;
+const REVEAL_CHIME_FREQS = {
+  common: [523.25],
+  rare: [523.25, 659.25],
+  epic: [523.25, 659.25, 783.99],
+  legendary: [523.25, 659.25, 783.99, 1046.5],
+  cooloss: [659.25, 987.77],
+};
+function playRevealChime(tier) {
+  const vol = getSharedVolume();
+  if (vol <= 0) return;
+  try {
+    if (!revealAudioCtx) revealAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = revealAudioCtx;
+    const freqs = REVEAL_CHIME_FREQS[tier] || REVEAL_CHIME_FREQS.common;
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.07;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(vol * 0.25, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.5);
+    });
+  } catch (_) { /* Web Audio indisponible/bloqué — jamais bloquant pour la révélation */ }
 }
 
-async function revealShard(index, res) {
-  const slot = document.getElementById(`shard-back-${index}`);
-  slot.classList.add('revealing');
+// Flash radial + gerbe de particules colorées par tier, posés en overlay
+// dans .spotlight-stage au moment de l'impact — nettoyés d'eux-mêmes après
+// leur transition (pas de nœuds qui traînent entre deux ouvertures).
+function spawnRevealImpact(stage, tier) {
+  const color = `var(--tier-${tier}-bracket)`;
+  const flash = document.createElement('div');
+  flash.className = 'spotlight-flash';
+  flash.style.setProperty('--flash-color', color);
+  stage.appendChild(flash);
+  requestAnimationFrame(() => flash.classList.add('pulse'));
+  setTimeout(() => flash.remove(), 550);
+
+  const particleCount = tier === 'legendary' ? 20 : tier === 'epic' ? 14 : tier === 'cooloss' ? 16 : 9;
+  for (let i = 0; i < particleCount; i++) {
+    const p = document.createElement('div');
+    p.className = 'spotlight-particle';
+    p.style.setProperty('--particle-color', color);
+    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.4;
+    const dist = 70 + Math.random() * 90;
+    p.style.setProperty('--px', `${Math.cos(angle) * dist}px`);
+    p.style.setProperty('--py', `${Math.sin(angle) * dist}px`);
+    stage.appendChild(p);
+    requestAnimationFrame(() => p.classList.add('burst'));
+    setTimeout(() => p.remove(), 750);
+  }
+}
+
+function renderShardBacks(results) {
+  // Tri par rareté croissante : le meilleur tirage du lot est toujours
+  // révélé en dernier, quel que soit l'ordre réel renvoyé par le serveur.
+  const ordered = [...results].sort((a, b) => (RARITY_ORDER[a.tier] ?? 0) - (RARITY_ORDER[b.tier] ?? 0));
+
+  document.getElementById('booster-modal-card').className = 'modal-card modal-card--reveal modal-card--spotlight';
+  const subtitle = document.getElementById('booster-modal-subtitle');
+  const body = document.getElementById('booster-modal-body');
+  document.getElementById('booster-modal-ok').textContent = 'TERMINER';
+
+  body.innerHTML = `
+    <div class="spotlight-stage" id="spotlight-stage"></div>
+    <div class="spotlight-dots" id="spotlight-dots">
+      ${ordered.map((_, i) => `<span class="spotlight-dot hf-mono" id="spotlight-dot-${i}">?</span>`).join('')}
+    </div>
+  `;
+  if (subtitle) subtitle.textContent = `1 / ${ordered.length} — CLIQUE POUR RÉVÉLER`;
+
+  renderSpotlightSlot(ordered, 0);
+}
+
+function renderSpotlightSlot(ordered, index) {
+  const subtitle = document.getElementById('booster-modal-subtitle');
+  if (index >= ordered.length) {
+    if (subtitle) subtitle.textContent = 'PACK OUVERT';
+    return;
+  }
+  const res = ordered[index];
+  const stage = document.getElementById('spotlight-stage');
+  if (subtitle) subtitle.textContent = `${index + 1} / ${ordered.length} — CLIQUE POUR RÉVÉLER`;
+
+  for (let i = 0; i < index; i++) {
+    const doneDot = document.getElementById(`spotlight-dot-${i}`);
+    if (doneDot) doneDot.classList.remove('active');
+  }
+  const dot = document.getElementById(`spotlight-dot-${index}`);
+  if (dot) dot.classList.add('active');
+
+  let clipStyle = '';
+  if (res.tier === 'cooloss') {
+    clipStyle = ` style="clip-path:${COOLOSS_SHARD_CLIP}"`;
+  } else if (res.newly_revealed_points) {
+    clipStyle = ` style="clip-path:${normalizedClipPath(res.newly_revealed_points, pieceBBox(res.newly_revealed_points))}"`;
+  }
+
+  stage.innerHTML = `
+    <div class="shard-back spotlight-active${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-active" style="--glow: var(--tier-${res.tier}-bracket)">
+      <div class="shard-visual">
+        <div class="shard-glow"${clipStyle}></div>
+        <div class="shard-back-inner hf-mono"${clipStyle}>?</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('shard-back-active').addEventListener(
+    'click',
+    () => revealShard(ordered, index),
+    { once: true }
+  );
+}
+
+async function revealShard(ordered, index) {
+  const res = ordered[index];
+  const slot = document.getElementById('shard-back-active');
+  const stage = document.getElementById('spotlight-stage');
+  const dot = document.getElementById(`spotlight-dot-${index}`);
+  slot.classList.add('revealing', 'flipping');
+
+  // L'éclat est "sur la tranche" (invisible, transform CSS) pendant
+  // REVEAL_HOLD_MS — le contenu réel est posé dessous à cet instant précis
+  // pour que l'échange soit invisible, puis la carte se déplie dessus.
+  await new Promise((resolve) => setTimeout(resolve, REVEAL_HOLD_MS[res.tier] ?? 240));
 
   if (res.tier === 'cooloss') {
-    // Pas de média associé — un joker ajouté au stock, rien à assembler en
-    // carte ensuite (pas de délai de 2s, on règle direct sur l'état final).
-    slot.classList.remove('revealing');
+    slot.classList.remove('revealing', 'flipping');
     slot.classList.add('revealed', 'assembled');
     const visual = slot.querySelector('.shard-visual');
     visual.innerHTML = '';
@@ -714,16 +812,24 @@ async function revealShard(index, res) {
     info.className = 'shard-back-info';
     info.innerHTML = `
       <span class="tier-badge cooloss hf-cond">[Shard Cooloss]</span>
-      <span class="hf-mono" style="font-size:12px;color:rgba(16,22,28,.5)">+1 en stock</span>
+      <span class="hf-mono shard-info-sub">+1 en stock</span>
     `;
     slot.appendChild(info);
+
+    spawnRevealImpact(stage, 'cooloss');
+    playRevealChime('cooloss');
+    if (dot) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = ''; dot.style.setProperty('--dot-glow', 'var(--tier-cooloss-bracket)'); }
 
     const countPill = document.getElementById('cooloss-shard-count');
     if (countPill) countPill.textContent = res.cooloss_shards;
     if (currentCollection) currentCollection.cooloss_shards = res.cooloss_shards;
 
-    const allRevealed = document.querySelectorAll('.shard-back:not(.revealed)').length === 0;
-    if (allRevealed) await loadCollection();
+    const isLast = index === ordered.length - 1;
+    // Un raté réseau ici (rechargement de la collection) ne doit jamais
+    // bloquer la suite de la séquence — sinon un blip transitoire fige le
+    // reveal en plein milieu, sans possibilité d'avancer.
+    if (isLast) { try { await loadCollection(); } catch (_) {} }
+    setTimeout(() => renderSpotlightSlot(ordered, index + 1), 1400);
     return;
   }
 
@@ -731,7 +837,7 @@ async function revealShard(index, res) {
   const videoUrl = meta ? `${MEMOSS_ORIGIN}${meta.url}` : '';
   const bbox = res.newly_revealed_points ? pieceBBox(res.newly_revealed_points) : null;
 
-  slot.classList.remove('revealing');
+  slot.classList.remove('revealing', 'flipping');
   slot.classList.add('revealed');
 
   const mediaWrap = document.createElement('div');
@@ -768,17 +874,27 @@ async function revealShard(index, res) {
   info.className = 'shard-back-info';
   info.innerHTML = `
     <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
-    <span class="hf-mono" style="font-size:12px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
+    <span class="hf-mono shard-info-sub">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
   `;
   slot.appendChild(info);
 
+  spawnRevealImpact(stage, res.tier);
+  playRevealChime(res.tier);
+  if (dot) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = ''; dot.style.setProperty('--dot-glow', `var(--tier-${res.tier}-bracket)`); }
+
+  const isLast = index === ordered.length - 1;
+  // Un raté réseau ici ne doit jamais bloquer la suite de la séquence — voir
+  // le même garde-fou dans la branche cooloss ci-dessus.
+  if (isLast) { try { await loadCollection(); } catch (_) {} }
+
   // Après 2s, la carte complète apparaît et l'éclat "rentre" dedans : vidéo
   // non recadrée + vrai puzzle de la carte, à la place du gros plan
-  // recadré sur ce seul éclat.
-  setTimeout(() => assembleCard(slot, res, videoUrl), 2000);
-
-  const allRevealed = document.querySelectorAll('.shard-back:not(.revealed)').length === 0;
-  if (allRevealed) await loadCollection();
+  // recadré sur ce seul éclat. Puis, après un temps d'admiration, on
+  // enchaîne sur le tirage suivant (ou on s'arrête si c'était le dernier).
+  setTimeout(() => {
+    assembleCard(slot, res, videoUrl);
+    setTimeout(() => renderSpotlightSlot(ordered, index + 1), 900);
+  }, 2000);
 }
 
 async function assembleCard(slot, res, videoUrl) {
