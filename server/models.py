@@ -110,3 +110,22 @@ class LootSettings(SQLModel, table=True):
     cooloss_shard_price_base: float = Field(default=400.0)
     cooloss_shard_price_growth: float = Field(default=1.15)
     cooloss_shard_loot_chance: float = Field(default=0.04)
+
+
+# Spectre de couleur du toast "+N" affiché à chaque boucle d'une carte
+# débloquée — 4 paliers fixes (seuil de gain + couleur hex), éditables en
+# admin. Le front choisit le dernier palier dont le seuil est <= au gain
+# (paliers triés par seuil croissant). Seuils par défaut calibrés sur
+# gain = duration_seconds * points_per_sec (~4 à ~450 en pratique, du
+# common courte durée au legendary long et bien noté).
+class ToastColorSettings(SQLModel, table=True):
+    __tablename__ = "toast_color_settings"
+    id: Optional[int] = Field(default=1, primary_key=True)
+    stop1_threshold: float = Field(default=0.0)
+    stop1_color: str = Field(default="#c9d3da")
+    stop2_threshold: float = Field(default=15.0)
+    stop2_color: str = Field(default="#ffd75e")
+    stop3_threshold: float = Field(default=40.0)
+    stop3_color: str = Field(default="#ff9f43")
+    stop4_threshold: float = Field(default=100.0)
+    stop4_color: str = Field(default="#ff4d8f")

@@ -8,9 +8,12 @@ from sqlmodel import Session, select
 
 from auth import require_admin
 from db import get_session
-from models import BoosterConfig, LootSettings
+from economy import get_toast_color_settings
+from models import BoosterConfig, LootSettings, ToastColorSettings
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+HEX_COLOR = r"^#[0-9a-fA-F]{6}$"
 
 
 class BoosterConfigPayload(BaseModel):
@@ -23,12 +26,18 @@ class BoosterConfigPayload(BaseModel):
     weight_legendary: int = Field(ge=0)
 
 
+class ToastColorStopPayload(BaseModel):
+    threshold: float = Field(ge=0)
+    color: str = Field(pattern=HEX_COLOR)
+
+
 class LootConfigPayload(BaseModel):
     booster_price_growth: float = Field(gt=1)
     cooloss_shard_price_base: float = Field(gt=0)
     cooloss_shard_price_growth: float = Field(gt=1)
     cooloss_shard_loot_chance: float = Field(ge=0, le=1)
     boosters: dict[str, BoosterConfigPayload]
+    toast_color_stops: list[ToastColorStopPayload]
 
 
 def _serialize(session: Session) -> dict:
@@ -45,12 +54,19 @@ def _serialize(session: Session) -> dict:
         }
         for c in session.exec(select(BoosterConfig)).all()
     }
+    toast = get_toast_color_settings(session)
     return {
         "booster_price_growth": settings.booster_price_growth,
         "cooloss_shard_price_base": settings.cooloss_shard_price_base,
         "cooloss_shard_price_growth": settings.cooloss_shard_price_growth,
         "cooloss_shard_loot_chance": settings.cooloss_shard_loot_chance,
         "boosters": boosters,
+        "toast_color_stops": [
+            {"threshold": toast.stop1_threshold, "color": toast.stop1_color},
+            {"threshold": toast.stop2_threshold, "color": toast.stop2_color},
+            {"threshold": toast.stop3_threshold, "color": toast.stop3_color},
+            {"threshold": toast.stop4_threshold, "color": toast.stop4_color},
+        ],
     }
 
 
@@ -80,6 +96,16 @@ def update_loot_config(payload: LootConfigPayload, session: Session = Depends(ge
     settings.cooloss_shard_price_growth = payload.cooloss_shard_price_growth
     settings.cooloss_shard_loot_chance = payload.cooloss_shard_loot_chance
     session.add(settings)
+
+    stops = sorted(payload.toast_color_stops, key=lambda s: s.threshold)
+    if len(stops) != 4:
+        raise HTTPException(status_code=400, detail="il faut exactement 4 paliers de couleur")
+    toast = session.get(ToastColorSettings, 1)
+    toast.stop1_threshold, toast.stop1_color = stops[0].threshold, stops[0].color
+    toast.stop2_threshold, toast.stop2_color = stops[1].threshold, stops[1].color
+    toast.stop3_threshold, toast.stop3_color = stops[2].threshold, stops[2].color
+    toast.stop4_threshold, toast.stop4_color = stops[3].threshold, stops[3].color
+    session.add(toast)
 
     session.commit()
     return _serialize(session)

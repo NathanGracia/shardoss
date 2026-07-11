@@ -81,7 +81,7 @@ def init_db() -> None:
     # importe models, pas db, donc pas de cycle, mais on garde le style du
     # fichier (imports tardifs pour les dépendances entre modules internes).
     from economy import BOOSTER_PRICE_GROWTH, BOOSTER_TYPES, COOLOSS_SHARD_LOOT_CHANCE, COOLOSS_SHARD_PRICE_BASE, COOLOSS_SHARD_PRICE_GROWTH
-    from models import BoosterConfig, LootSettings
+    from models import BoosterConfig, LootSettings, ToastColorSettings
 
     with Session(engine) as _session:
         if _session.get(LootSettings, 1) is None:
@@ -104,4 +104,6 @@ def init_db() -> None:
                     weight_epic=_meta["weights"]["epic"],
                     weight_legendary=_meta["weights"]["legendary"],
                 ))
+        if _session.get(ToastColorSettings, 1) is None:
+            _session.add(ToastColorSettings(id=1))  # valeurs par défaut du modèle
         _session.commit()

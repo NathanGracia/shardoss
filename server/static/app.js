@@ -334,6 +334,17 @@ async function renderAdminForm() {
           </div>
         `;
       }).join('')}
+      <div class="admin-section-title">COULEURS DES TOASTS (SPECTRE DE GAIN)</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(16,22,28,.45);margin-bottom:10px">
+        4 paliers, triés par seuil de gain croissant — la couleur appliquée au toast "+N" est celle du dernier palier dont le seuil est ≤ au gain affiché.
+      </div>
+      ${config.toast_color_stops.map((stop, i) => `
+        <div class="admin-toast-stop">
+          <span class="admin-toast-stop-label">SEUIL ${i + 1}</span>
+          <input type="number" step="1" min="0" id="admin-toast-stop-${i}-threshold" value="${stop.threshold}">
+          <input type="color" id="admin-toast-stop-${i}-color" value="${stop.color}">
+        </div>
+      `).join('')}
       <div id="admin-form-message"></div>
     `;
   } catch (_) {
@@ -349,6 +360,10 @@ async function saveAdminConfig() {
     cooloss_shard_price_growth: parseFloat(document.getElementById('admin-cooloss-price-growth').value),
     cooloss_shard_loot_chance: parseFloat(document.getElementById('admin-cooloss-loot-chance').value),
     boosters: {},
+    toast_color_stops: [0, 1, 2, 3].map((i) => ({
+      threshold: parseFloat(document.getElementById(`admin-toast-stop-${i}-threshold`).value),
+      color: document.getElementById(`admin-toast-stop-${i}-color`).value,
+    })),
   };
   ADMIN_BOOSTER_ORDER.forEach((type) => {
     const labelEl = document.getElementById(`admin-${type}-label`);
@@ -408,7 +423,7 @@ function renderEconomyBar(state) {
       <span class="dolloss-value hf-mono" id="dolloss-value">${Math.floor(state.dolloss).toLocaleString('fr-FR')}</span>
       <span class="dolloss-label hf-cond">DOLLOSS</span>
     </div>
-    <div class="dolloss-pill cooloss-shard-pill" id="cooloss-shard-pill" title="Shards cooloss en stock — jokers utilisables sur n'importe quelle carte">
+    <div class="dolloss-pill cooloss-shard-pill" id="cooloss-shard-pill" title="Joker : permet de déverrouiller une shard sur n'importe quelle carte">
       <img class="cooloss-shard-icon-small" src="cooloss-shard.png" alt="">
       <span class="dolloss-value hf-mono" id="cooloss-shard-count">${state.cooloss_shards || 0}</span>
     </div>
@@ -457,7 +472,7 @@ async function renderBoosterSelection() {
         <div class="cooloss-shard-shop-info">
           <div class="cooloss-shard-shop-title hf-cond">SHARD COOLOSS</div>
           <div class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">
-            Joker — s'applique sur n'importe quelle carte verrouillée. En stock : <span id="cooloss-shard-shop-owned">${cooloss.count}</span>
+            Joker : permet de déverrouiller une shard sur n'importe quelle carte. En stock : <span id="cooloss-shard-shop-owned">${cooloss.count}</span>
           </div>
         </div>
         <div class="cooloss-shard-shop-buy">
@@ -784,7 +799,7 @@ async function assembleCard(slot, res, videoUrl) {
   const band = document.createElement('div');
   band.className = 'meme-card-band';
   band.innerHTML = `
-    <span class="pps hf-mono">${res.points_per_sec.toFixed(1)} PTS/S</span>
+    <span class="pps hf-mono">${res.points_per_sec.toFixed(1)} DOLLOSS/S</span>
     <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
     <span class="mult hf-mono">×${res.quality_multiplier.toFixed(2)}</span>
   `;
@@ -810,6 +825,62 @@ function buildShatterSvg(fragments) {
   return `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${polys}</svg>`;
 }
 
+// Spectre de couleur du toast de gain — paramétré en admin (ToastColorSettings,
+// voir admin_router.py), transmis via currentCollection.toast_color_stops
+// (déjà trié par seuil croissant côté serveur). Repli statique si la
+// collection n'est pas encore chargée (ne devrait pas arriver en pratique,
+// vu que le premier toast ne peut survenir qu'après un unlock).
+const DEFAULT_TOAST_COLOR_STOPS = [
+  { threshold: 0, color: '#c9d3da' },
+  { threshold: 15, color: '#ffd75e' },
+  { threshold: 40, color: '#ff9f43' },
+  { threshold: 100, color: '#ff4d8f' },
+];
+function colorForGain(gain) {
+  const stops = (currentCollection && currentCollection.toast_color_stops) || DEFAULT_TOAST_COLOR_STOPS;
+  let color = stops[0].color;
+  for (const stop of stops) {
+    if (gain >= stop.threshold) color = stop.color;
+  }
+  return color;
+}
+
+// Toast partagé au-dessus du crédit Dolloss de l'economy bar — un seul
+// nœud persistant (pas dans activePopCounters : contrairement aux toasts
+// par carte, il ne doit PAS être détruit à chaque re-render de la grille,
+// seulement recréé une fois pour toute la session).
+let dollossToast = null;
+function ensureDollossToast() {
+  if (!dollossToast) {
+    dollossToast = document.createElement('div');
+    dollossToast.className = 'pop-counter';
+    document.body.appendChild(dollossToast);
+  }
+  return dollossToast;
+}
+
+// Positionne/anime un toast "+N" au-dessus de anchorRect, coloré selon le
+// spectre de gain — factorisé car appelé deux fois par boucle de carte
+// débloquée : une fois sur la carte elle-même, une fois au-dessus du
+// crédit Dolloss global (voir setupLoopPop).
+function showGainToast(counter, anchorRect, gain) {
+  counter.style.left = `${anchorRect.left + anchorRect.width / 2}px`;
+  counter.style.top = `${anchorRect.top}px`;
+  counter.style.color = colorForGain(gain);
+  // Timeouts d'un cycle précédent nettoyés au cas où deux boucles très
+  // courtes se chevauchent — sinon un ancien setTimeout peut retirer
+  // les classes en plein milieu de la nouvelle animation.
+  if (counter._popTimeout1) clearTimeout(counter._popTimeout1);
+  if (counter._popTimeout2) clearTimeout(counter._popTimeout2);
+  counter.textContent = `+${gain}`;
+  counter.classList.remove('leaving');
+  counter.classList.add('show');
+  counter._popTimeout1 = setTimeout(() => {
+    counter.classList.add('leaving'); // s'élève en s'estompant
+    counter._popTimeout2 = setTimeout(() => counter.classList.remove('show', 'leaving'), 500);
+  }, 700);
+}
+
 function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
   // Pas d'attribut `loop` natif : avec `loop`, l'event `ended` ne se
   // déclenche jamais côté navigateur. On boucle manuellement pour pouvoir
@@ -823,22 +894,11 @@ function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
       // rogné s'il restait descendant de cet élément. counter vit donc en
       // dehors, "téléporté" (position:fixed) au-dessus de mediaEl à chaque
       // déclenchement via son rect live, pas rattaché au flux de la carte.
-      const rect = mediaEl.getBoundingClientRect();
-      counter.style.left = `${rect.left + rect.width / 2}px`;
-      counter.style.top = `${rect.top}px`;
-
-      // Timeouts d'un cycle précédent nettoyés au cas où deux boucles très
-      // courtes se chevauchent — sinon un ancien setTimeout peut retirer
-      // les classes en plein milieu de la nouvelle animation.
-      if (counter._popTimeout1) clearTimeout(counter._popTimeout1);
-      if (counter._popTimeout2) clearTimeout(counter._popTimeout2);
-      counter.textContent = `+${gain}`;
-      counter.classList.remove('leaving');
-      counter.classList.add('show');
-      counter._popTimeout1 = setTimeout(() => {
-        counter.classList.add('leaving'); // s'élève en s'estompant
-        counter._popTimeout2 = setTimeout(() => counter.classList.remove('show', 'leaving'), 500);
-      }, 700);
+      showGainToast(counter, mediaEl.getBoundingClientRect(), gain);
+    }
+    const dollossValueEl = document.getElementById('dolloss-value');
+    if (dollossValueEl) {
+      showGainToast(ensureDollossToast(), dollossValueEl.getBoundingClientRect(), gain);
     }
     video.currentTime = 0;
     video.play().catch(() => {
@@ -911,7 +971,7 @@ async function renderCard(cardData) {
   const band = document.createElement('div');
   band.className = 'meme-card-band';
   band.innerHTML = `
-    <span class="pps hf-mono">${cardData.points_per_sec.toFixed(1)} PTS/S</span>
+    <span class="pps hf-mono">${cardData.points_per_sec.toFixed(1)} DOLLOSS/S</span>
     <span class="tier-badge ${cardData.tier} hf-cond">${TIER_LABELS[cardData.tier] || cardData.tier}</span>
     <span class="mult hf-mono">×${cardData.quality_multiplier.toFixed(2)}</span>
   `;

@@ -11,7 +11,7 @@ from typing import Optional
 
 from sqlmodel import Session, func, select
 
-from models import BoosterConfig, LootSettings, MemeCard, PlayerCollection, PlayerCurrency, ShardLog
+from models import BoosterConfig, LootSettings, MemeCard, PlayerCollection, PlayerCurrency, ShardLog, ToastColorSettings
 
 BASE_POINTS_PER_SEC = {"common": 1.0, "rare": 3.0, "epic": 6.0, "legendary": 10.0}
 SHARDS_REQUIRED = {"common": 3, "rare": 6, "epic": 12, "legendary": 24}
@@ -285,6 +285,31 @@ def get_loot_settings(session: Session) -> LootSettings:
 
 def get_booster_config(session: Session, booster_type: str) -> Optional[BoosterConfig]:
     return session.get(BoosterConfig, booster_type)
+
+
+def get_toast_color_settings(session: Session) -> ToastColorSettings:
+    settings = session.get(ToastColorSettings, 1)
+    if settings is None:
+        settings = ToastColorSettings(id=1)
+        session.add(settings)
+        session.flush()
+    return settings
+
+
+def toast_color_stops(session: Session) -> list[dict]:
+    """
+    Paliers de couleur du toast de gain, triés par seuil croissant — le
+    front choisit le dernier palier dont le seuil est <= au gain affiché.
+    """
+    s = get_toast_color_settings(session)
+    stops = [
+        {"threshold": s.stop1_threshold, "color": s.stop1_color},
+        {"threshold": s.stop2_threshold, "color": s.stop2_color},
+        {"threshold": s.stop3_threshold, "color": s.stop3_color},
+        {"threshold": s.stop4_threshold, "color": s.stop4_color},
+    ]
+    stops.sort(key=lambda st: st["threshold"])
+    return stops
 
 
 def get_all_booster_configs(session: Session) -> list[BoosterConfig]:
