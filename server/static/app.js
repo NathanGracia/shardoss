@@ -236,7 +236,7 @@ function renderEconomyBar(state) {
       <span class="dolloss-label hf-cond">DOLLOSS</span>
     </div>
     <div class="dolloss-pill cooloss-shard-pill" id="cooloss-shard-pill" title="Shards cooloss en stock — jokers utilisables sur n'importe quelle carte">
-      <span class="cooloss-shard-icon-small">🃏</span>
+      <img class="cooloss-shard-icon-small" src="cooloss-shard.png" alt="">
       <span class="dolloss-value hf-mono" id="cooloss-shard-count">${state.cooloss_shards || 0}</span>
     </div>
     <button class="booster-buy" id="booster-buy-btn">+ ACHETER UN BOOSTER</button>
@@ -280,7 +280,7 @@ async function renderBoosterSelection() {
         `).join('')}
       </div>
       <div class="cooloss-shard-shop">
-        <div class="cooloss-shard-shop-icon">🃏</div>
+        <div class="cooloss-shard-shop-icon"><img src="cooloss-shard.png" alt=""></div>
         <div class="cooloss-shard-shop-info">
           <div class="cooloss-shard-shop-title hf-cond">SHARD COOLOSS</div>
           <div class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">
@@ -510,7 +510,7 @@ async function revealShard(index, res) {
     visual.innerHTML = '';
     const mediaWrap = document.createElement('div');
     mediaWrap.className = 'shard-back-media cooloss-shard-reveal';
-    mediaWrap.textContent = '🃏';
+    mediaWrap.innerHTML = '<img src="cooloss-shard.png" alt="">';
     visual.appendChild(mediaWrap);
 
     const info = document.createElement('div');
@@ -744,10 +744,9 @@ async function renderCard(cardData) {
   // sur CETTE carte — n'apparaît que sur les cartes verrouillées (inutile
   // une fois débloquée) et seulement si le joueur en possède au moins une.
   if (!cardData.unlocked && currentCollection && currentCollection.cooloss_shards > 0) {
-    shardCount.classList.add('has-cooloss-btn');
     const useBtn = document.createElement('button');
     useBtn.className = 'cooloss-shard-use-icon';
-    useBtn.innerHTML = '🃏';
+    useBtn.innerHTML = '<img src="cooloss-shard.png" alt="">';
     useBtn.title = 'Utiliser une shard cooloss';
     useBtn.addEventListener('click', () => useCoolossShardOnCard(cardData.media_id, useBtn));
     shardCount.appendChild(useBtn);

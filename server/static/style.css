@@ -155,7 +155,7 @@ header {
 .dolloss-value { font-size: 13px; font-weight: 500; color: var(--ink); }
 
 .cooloss-shard-pill { border-color: var(--tier-cooloss-border); background: rgba(168, 85, 247, 0.08); }
-.cooloss-shard-icon-small { font-size: 13px; line-height: 1; }
+.cooloss-shard-icon-small { width: 15px; height: 15px; display: block; object-fit: contain; }
 .dolloss-label { font-size: 11px; letter-spacing: 0.08em; color: rgba(16, 22, 28, 0.45); }
 
 .booster-buy {
@@ -357,9 +357,6 @@ main { padding: 0 0 40px; }
   color: rgba(16, 22, 28, 0.4);
   border-top: 1px solid rgba(16, 22, 28, 0.08);
 }
-/* Réserve la place de l'icône jocker uniquement quand elle est présente —
-   sinon le padding décale le texte sur toutes les cartes sans raison. */
-.shard-count.has-cooloss-btn { padding-right: 32px; }
 
 .empty-state {
   grid-column: 1 / -1;
@@ -502,8 +499,8 @@ main { padding: 0 0 40px; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
 }
+.cooloss-shard-shop-icon img { width: 30px; height: 30px; object-fit: contain; }
 .cooloss-shard-shop-info { flex: 1; min-width: 0; }
 .cooloss-shard-shop-title {
   font-size: 15px;
@@ -521,15 +518,15 @@ main { padding: 0 0 40px; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
   background: linear-gradient(160deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08));
 }
+.cooloss-shard-reveal img { width: 56%; height: 56%; object-fit: contain; }
 
 /* Icône "utiliser une shard cooloss" — sur la même ligne que le compteur de
    shards d'une carte verrouillée, pas une bande à part. */
 .cooloss-shard-use-icon {
   position: absolute;
-  right: 6px;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
   width: 20px;
@@ -539,13 +536,12 @@ main { padding: 0 0 40px; }
   border-radius: 5px;
   background: rgba(168, 85, 247, 0.15);
   color: var(--tier-cooloss-text);
-  font-size: 11px;
-  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
+.cooloss-shard-use-icon img { width: 13px; height: 13px; object-fit: contain; }
 .cooloss-shard-use-icon:hover { background: rgba(168, 85, 247, 0.28); }
 .cooloss-shard-use-icon:disabled { cursor: default; opacity: 0.6; }
 
