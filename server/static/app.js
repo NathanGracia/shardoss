@@ -706,11 +706,20 @@ function playRevealChime(tier) {
 // du flash (scrollbar qui apparaît puis disparaît, très inélégant).
 // Nettoyés d'eux-mêmes après leur transition (pas de nœuds qui traînent
 // entre deux ouvertures).
+// --tier-epic-bracket et --tier-legendary-bracket sont la MÊME couleur
+// (voir :root, le badge les distingue par le texte/la bordure, pas la
+// teinte) — un point de particule n'a que sa couleur pour se distinguer,
+// donc legendary alterne orange/teal (rappel du dégradé du badge
+// --tier-legendary-bg) plutôt que de se confondre visuellement avec epic.
+function tierParticleColor(tier, i) {
+  if (tier === 'legendary') return i % 2 === 0 ? 'var(--orange)' : 'var(--teal)';
+  return `var(--tier-${tier}-bracket)`;
+}
+
 function spawnRevealImpact(visual, tier) {
-  const color = `var(--tier-${tier}-bracket)`;
   const flash = document.createElement('div');
   flash.className = 'spotlight-flash';
-  flash.style.setProperty('--flash-color', color);
+  flash.style.setProperty('--flash-color', `var(--tier-${tier}-bracket)`);
   visual.appendChild(flash);
   requestAnimationFrame(() => flash.classList.add('pulse'));
   setTimeout(() => flash.remove(), 550);
@@ -719,7 +728,7 @@ function spawnRevealImpact(visual, tier) {
   for (let i = 0; i < particleCount; i++) {
     const p = document.createElement('div');
     p.className = 'spotlight-particle';
-    p.style.setProperty('--particle-color', color);
+    p.style.setProperty('--particle-color', tierParticleColor(tier, i));
     const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.4;
     const dist = 70 + Math.random() * 90;
     p.style.setProperty('--px', `${Math.cos(angle) * dist}px`);
@@ -735,14 +744,13 @@ function spawnRevealImpact(visual, tier) {
 // .shard-visual, en dehors de la zone clippée par le polygone, donc
 // visibles TOUT AUTOUR de la silhouette plutôt que dessus.
 function renderAmbientParticles(visual, tier) {
-  const color = `var(--tier-${tier}-bracket)`;
   const count = tier === 'legendary' ? 10 : (tier === 'epic' || tier === 'cooloss') ? 8 : 6;
   const ambient = document.createElement('div');
   ambient.className = 'shard-ambient';
   for (let i = 0; i < count; i++) {
     const dot = document.createElement('div');
     dot.className = 'shard-ambient-dot';
-    dot.style.setProperty('--particle-color', color);
+    dot.style.setProperty('--particle-color', tierParticleColor(tier, i));
     const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
     const radius = 90 + Math.random() * 50;
     dot.style.setProperty('--px', `${Math.cos(angle) * radius}px`);
@@ -759,7 +767,7 @@ function renderShardBacks(results) {
   // révélé en dernier, quel que soit l'ordre réel renvoyé par le serveur.
   const ordered = [...results].sort((a, b) => (RARITY_ORDER[a.tier] ?? 0) - (RARITY_ORDER[b.tier] ?? 0));
 
-  document.getElementById('booster-modal-card').className = 'modal-card modal-card--wide modal-card--spotlight';
+  document.getElementById('booster-modal-card').className = 'modal-card modal-card--wide';
   const subtitle = document.getElementById('booster-modal-subtitle');
   const body = document.getElementById('booster-modal-body');
   document.getElementById('booster-modal-ok').textContent = 'TERMINER';
@@ -907,7 +915,17 @@ async function revealShard(ordered, index) {
 
   spawnRevealImpact(visual, res.tier);
   playRevealChime(res.tier);
-  if (dot) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = ''; dot.style.setProperty('--dot-glow', `var(--tier-${res.tier}-bracket)`); }
+  if (dot) {
+    dot.classList.remove('active');
+    dot.classList.add('done');
+    dot.textContent = '';
+    // legendary partage sa couleur de "bracket" avec epic (voir :root) — le
+    // dégradé dual-tone du badge est repris ici pour que la pastille reste
+    // distinguable au premier coup d'œil, même remarque que tierParticleColor.
+    dot.style.setProperty('--dot-glow', res.tier === 'legendary'
+      ? 'linear-gradient(90deg, var(--orange), var(--teal))'
+      : `var(--tier-${res.tier}-bracket)`);
+  }
 
   const isLast = index === ordered.length - 1;
   // Un raté réseau ici ne doit jamais bloquer la suite de la séquence — voir
