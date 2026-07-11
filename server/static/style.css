@@ -158,7 +158,18 @@ header {
   background: rgba(255, 255, 255, 0.5);
 }
 .dolloss-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); flex: none; }
-.dolloss-value { font-size: 13px; font-weight: 500; color: var(--ink); }
+.dolloss-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+/* Pendant animateDollossCounter() (voir app.js) : léger éclat façon
+   compteur de machine à sous tant que les chiffres défilent. */
+.dolloss-value.counting {
+  color: var(--orange);
+  text-shadow: 0 0 10px rgba(255, 159, 67, 0.55);
+}
 
 .cooloss-shard-pill { border-color: var(--tier-cooloss-border); background: rgba(168, 85, 247, 0.08); }
 .cooloss-shard-icon-small { width: 15px; height: 15px; display: block; object-fit: contain; }

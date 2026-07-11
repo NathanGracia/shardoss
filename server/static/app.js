@@ -430,6 +430,10 @@ function renderEconomyBar(state) {
     <button class="booster-buy" id="booster-buy-btn">+ ACHETER UN BOOSTER</button>
   `;
   document.getElementById('booster-buy-btn').addEventListener('click', openBoosterModal);
+  // Point de départ pour animateDollossCounter() : évite de reparser le
+  // texte formaté (espaces insécables fr-FR) au premier gain venant après
+  // un (re)rendu complet de l'economy bar.
+  document.getElementById('dolloss-value')._dollossDisplay = Math.floor(state.dolloss);
 }
 
 async function openBoosterModal() {
@@ -529,10 +533,13 @@ async function buyCoolossShard() {
     if (!r.ok) throw new Error('buy failed');
     const data = await r.json();
 
-    document.getElementById('dolloss-value').textContent = Math.floor(data.dolloss).toLocaleString('fr-FR');
+    animateDollossCounter(document.getElementById('dolloss-value'), data.dolloss);
     const countPill = document.getElementById('cooloss-shard-count');
     if (countPill) countPill.textContent = data.cooloss_shards;
-    if (currentCollection) currentCollection.cooloss_shards = data.cooloss_shards;
+    if (currentCollection) {
+      currentCollection.dolloss = data.dolloss;
+      currentCollection.cooloss_shards = data.cooloss_shards;
+    }
 
     const owned = document.getElementById('cooloss-shard-shop-owned');
     if (owned) owned.textContent = data.cooloss_shards;
@@ -567,7 +574,8 @@ async function buyAndRevealBooster(boosterType) {
     }
     if (!r.ok) throw new Error('booster buy failed');
     const data = await r.json();
-    document.getElementById('dolloss-value').textContent = Math.floor(data.dolloss).toLocaleString('fr-FR');
+    animateDollossCounter(document.getElementById('dolloss-value'), data.dolloss);
+    if (currentCollection) currentCollection.dolloss = data.dolloss;
 
     if (!data.results.length) {
       body.innerHTML = '<div class="empty-state">Aucune carte disponible — recalcul quotidien pas encore lancé.</div>';
@@ -881,6 +889,47 @@ function showGainToast(counter, anchorRect, gain) {
   }, 700);
 }
 
+// Anime le crédit Dolloss affiché en défilant vers sa nouvelle valeur (façon
+// odomètre de machine à sous) plutôt que de sauter instantanément dessus —
+// _dollossDisplay suit la valeur RÉELLEMENT affichée à l'écran (pas la
+// cible) pour qu'un nouvel appel pendant une animation en cours reparte de
+// là où l'œil en est, au lieu de sauter ou de faire clignoter le chiffre.
+function animateDollossCounter(el, to) {
+  if (!el) return;
+  to = Math.floor(to);
+  const from = typeof el._dollossDisplay === 'number'
+    ? el._dollossDisplay
+    : parseInt((el.textContent || '0').replace(/[^\d-]/g, ''), 10) || 0;
+  if (el._dollossAnimId) cancelAnimationFrame(el._dollossAnimId);
+  if (from === to) {
+    el.textContent = to.toLocaleString('fr-FR');
+    el._dollossDisplay = to;
+    return;
+  }
+
+  const maxDurationMs = 700; // rapide, mais assez long pour rester lisible chiffre par chiffre
+  const frameMs = 16;
+  const step = Math.max(1, Math.round(Math.abs(to - from) / (maxDurationMs / frameMs)));
+  const dir = to > from ? 1 : -1;
+  let current = from;
+
+  el.classList.add('counting');
+  const tick = () => {
+    current += dir * step;
+    const done = (dir > 0 && current >= to) || (dir < 0 && current <= to);
+    const shown = done ? to : current;
+    el.textContent = shown.toLocaleString('fr-FR');
+    el._dollossDisplay = shown;
+    if (done) {
+      el._dollossAnimId = null;
+      el.classList.remove('counting');
+      return;
+    }
+    el._dollossAnimId = requestAnimationFrame(tick);
+  };
+  el._dollossAnimId = requestAnimationFrame(tick);
+}
+
 function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
   // Pas d'attribut `loop` natif : avec `loop`, l'event `ended` ne se
   // déclenche jamais côté navigateur. On boucle manuellement pour pouvoir
@@ -899,6 +948,14 @@ function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
     const dollossValueEl = document.getElementById('dolloss-value');
     if (dollossValueEl) {
       showGainToast(ensureDollossToast(), dollossValueEl.getBoundingClientRect(), gain);
+      // Le solde exact reste calculé côté serveur à la volée (pas de
+      // persistance par tick, voir collection_router.py) — ce +gain local
+      // ne fait qu'anticiper visuellement ce que le prochain fetch
+      // confirmera, pour que le compteur bouge à chaque boucle plutôt que
+      // de rester figé entre deux rechargements.
+      const newTotal = (typeof dollossValueEl._dollossDisplay === 'number' ? dollossValueEl._dollossDisplay : 0) + gain;
+      if (currentCollection) currentCollection.dolloss = newTotal;
+      animateDollossCounter(dollossValueEl, newTotal);
     }
     video.currentTime = 0;
     video.play().catch(() => {
