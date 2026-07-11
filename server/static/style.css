@@ -41,11 +41,34 @@ body {
   min-height: 100vh;
   color: var(--ink);
   font-family: 'IBM Plex Sans', sans-serif;
-  background: radial-gradient(120% 100% at 50% -10%, var(--bg-1) 0%, var(--bg-2) 55%, var(--bg-3) 100%);
-  background-attachment: fixed;
+  /* Le fond vient de .page-wallpaper (vidéo) + .page-wallpaper-scrim
+     (dégradé semi-transparent par dessus) plutôt que d'un simple gradient
+     CSS — voir plus bas. */
 }
 
-/* Texture grille "blueprint" en fond, discrète */
+/* Vidéo de fond plein écran, fixe (ne défile pas avec le contenu) — z-index
+   le plus bas des trois couches de fond. */
+.page-wallpaper {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -3;
+}
+
+/* Voile semi-transparent (mêmes teintes que l'ancien gradient statique)
+   par-dessus la vidéo, pour que le texte et les cartes en glass-morphism
+   restent lisibles — sans ça la vidéo est trop chargée visuellement derrière
+   le contenu. */
+.page-wallpaper-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: radial-gradient(120% 100% at 50% -10%, rgba(247, 250, 252, 0.85) 0%, rgba(228, 235, 240, 0.85) 55%, rgba(216, 226, 233, 0.88) 100%);
+}
+
+/* Texture grille "blueprint", discrète, par-dessus le voile */
 body::before {
   content: '';
   position: fixed;

@@ -370,10 +370,18 @@ async function renderCard(cardData) {
   mediaEl.appendChild(video);
   videoObserver.observe(video);
 
-  const popCounter = document.createElement('div');
-  popCounter.className = 'pop-counter';
-  popCounter.textContent = '+0';
-  mediaEl.appendChild(popCounter);
+  // Le toast "+N" ne veut rien dire tant que la carte n'est pas
+  // déverrouillée : seules les cartes unlocked comptent dans la somme des
+  // points_per_sec qui alimente le Dolloss côté serveur (sum_points_per_sec
+  // filtre unlocked=True) — l'afficher sur une carte verrouillée annonce un
+  // gain qui n'est jamais réellement crédité.
+  let popCounter = null;
+  if (cardData.unlocked) {
+    popCounter = document.createElement('div');
+    popCounter.className = 'pop-counter';
+    popCounter.textContent = '+0';
+    mediaEl.appendChild(popCounter);
+  }
 
   el.appendChild(mediaEl);
 
@@ -386,7 +394,9 @@ async function renderCard(cardData) {
   `;
   el.appendChild(band);
 
-  setupLoopPop(video, mediaEl, cardData.points_per_sec);
+  if (cardData.unlocked) {
+    setupLoopPop(video, mediaEl, cardData.points_per_sec);
+  }
 
   if (!cardData.unlocked) {
     // La vidéo reste visible : les éclats "révélés" du puzzle sont
@@ -521,5 +531,20 @@ async function pollTierNotifications() {
   } else {
     document.getElementById('card-grid').innerHTML =
       '<div class="empty-state">Connecte-toi pour voir ta collection.</div>';
+  }
+
+  // Overlay de debug optionnel (?debugvideos dans l'URL) : confirme à l'œil
+  // que les vidéos hors-écran sont bien en pause, sans avoir à ouvrir les
+  // DevTools pour le vérifier à chaque fois.
+  if (location.search.includes('debugvideos')) {
+    const badge = document.createElement('div');
+    badge.style.cssText = 'position:fixed;bottom:12px;right:12px;background:rgba(16,22,28,.85);color:#7ee9b0;font:12px \'IBM Plex Mono\',monospace;padding:8px 12px;border-radius:8px;z-index:9999;pointer-events:none';
+    document.body.appendChild(badge);
+    setInterval(() => {
+      const videos = document.querySelectorAll('.card-grid video');
+      const withSrc = [...videos].filter((v) => v.src).length;
+      const playing = [...videos].filter((v) => v.src && !v.paused).length;
+      badge.textContent = `vidéos: ${videos.length} total · ${withSrc} chargées · ${playing} en lecture`;
+    }, 500);
   }
 })();
