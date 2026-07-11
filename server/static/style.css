@@ -236,6 +236,15 @@ main { padding: 0 0 40px; }
   border: 1px solid rgba(16, 22, 28, 0.12);
   box-shadow: 0 10px 24px rgba(16, 22, 28, 0.06);
   overflow: hidden;
+  position: relative;
+  transition: transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s ease;
+}
+.meme-card:hover {
+  transform: scale(1.06);
+  box-shadow: 0 22px 44px rgba(16, 22, 28, 0.2);
+  /* Au-dessus de ses voisins de grille pour ne pas être rogné/masqué par
+     la carte suivante quand l'agrandissement déborde de sa cellule. */
+  z-index: 5;
 }
 
 .meme-card-media {
