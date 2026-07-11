@@ -41,6 +41,7 @@ async function openBoosterModal() {
   const modal = document.getElementById('booster-modal');
   const subtitle = document.getElementById('booster-modal-subtitle');
   const okBtn = document.getElementById('booster-modal-ok');
+  document.getElementById('booster-modal-card').className = 'modal-card modal-card--wide';
   subtitle.textContent = 'BOOSTERS DISPONIBLES';
   okBtn.textContent = 'FERMER';
   modal.hidden = false;
@@ -122,7 +123,8 @@ function renderPackTap(results) {
 // Gradients "possédé" par tier, repris du mockup (TIER_META.ownedBg) — le
 // legendary n'y était pas (aucun des 3 exemples du mockup n'était
 // legendary), extrapolé en mélange orange/cyan pour rester cohérent avec
-// le badge dual-tone du tier.
+// le badge dual-tone du tier. Utilisé seulement en repli si aucune vidéo
+// n'a pu être chargée pour l'éclat.
 const TIER_REVEAL_BG = {
   common: 'linear-gradient(160deg,#eef1f3,#dbe1e5)',
   rare: 'linear-gradient(160deg,#cdeaf2,#a9d9e6)',
@@ -130,11 +132,41 @@ const TIER_REVEAL_BG = {
   legendary: 'linear-gradient(160deg,#ffe1c2,#c9ecf5)',
 };
 
-function clipPathFromPoints(points) {
-  return `polygon(${points.map(([x, y]) => `${(x * 100).toFixed(2)}% ${(y * 100).toFixed(2)}%`).join(', ')})`;
+// Les points d'un éclat sont stockés dans le référentiel de la carte ENTIÈRE
+// (0..1 sur toute la carte) — un éclat positionné dans un coin de la carte
+// n'occupe donc qu'une petite fraction de cet espace. Les normaliser à leur
+// propre boîte englobante avant de les utiliser comme clip-path, sinon
+// chaque éclat apparaît à une taille/position différente au lieu de
+// remplir uniformément sa case dans la rangée de révélation.
+function pieceBBox(points) {
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+}
+
+function normalizedClipPath(points, bbox) {
+  const w = bbox.maxX - bbox.minX || 1;
+  const h = bbox.maxY - bbox.minY || 1;
+  return `polygon(${points.map(([x, y]) => `${((x - bbox.minX) / w * 100).toFixed(2)}% ${((y - bbox.minY) / h * 100).toFixed(2)}%`).join(', ')})`;
+}
+
+// Positionne/dimensionne une vidéo pour qu'elle remplisse tout le conteneur
+// EN NE MONTRANT QUE la fenêtre correspondant à la bbox de cet éclat — même
+// principe qu'un sprite recadré : la vidéo est agrandie d'un facteur
+// 1/largeur_bbox (resp. hauteur) et décalée pour que la zone voulue tombe
+// pile dans le cadre visible (le clip-path posé sur le parent découpe
+// ensuite la vraie silhouette dans cette fenêtre).
+function cropVideoToBBox(video, bbox) {
+  const w = bbox.maxX - bbox.minX || 1;
+  const h = bbox.maxY - bbox.minY || 1;
+  video.style.width = `${100 / w}%`;
+  video.style.height = `${100 / h}%`;
+  video.style.left = `${(-bbox.minX / w) * 100}%`;
+  video.style.top = `${(-bbox.minY / h) * 100}%`;
 }
 
 function renderShardBacks(results) {
+  document.getElementById('booster-modal-card').className = 'modal-card modal-card--reveal';
   const body = document.getElementById('booster-modal-body');
   const okBtn = document.getElementById('booster-modal-ok');
   okBtn.textContent = 'TERMINER';
@@ -145,10 +177,13 @@ function renderShardBacks(results) {
       // déjà connue (calculée côté serveur pendant l'achat) — le dos
       // "mystère" prend directement cette forme au lieu d'un losange
       // générique, pour ne pas changer de silhouette au moment du clic.
-      const clip = res.newly_revealed_points ? clipPathFromPoints(res.newly_revealed_points) : '';
+      let clipStyle = '';
+      if (res.newly_revealed_points) {
+        clipStyle = ` style="clip-path:${normalizedClipPath(res.newly_revealed_points, pieceBBox(res.newly_revealed_points))}"`;
+      }
       return `
         <div class="shard-back${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
-          <div class="shard-back-inner hf-mono"${clip ? ` style="clip-path:${clip}"` : ''}>?</div>
+          <div class="shard-back-inner hf-mono"${clipStyle}>?</div>
         </div>
       `;
     }).join('')}
@@ -167,21 +202,84 @@ async function revealShard(index, res) {
   const slot = document.getElementById(`shard-back-${index}`);
   slot.classList.add('revealing');
 
-  const clip = res.newly_revealed_points ? clipPathFromPoints(res.newly_revealed_points) : '';
-  const bg = TIER_REVEAL_BG[res.tier] || TIER_REVEAL_BG.common;
+  const meta = await fetchMediaMeta(res.media_id);
+  const videoUrl = meta ? `${MEMOSS_ORIGIN}${meta.url}` : '';
+  const bbox = res.newly_revealed_points ? pieceBBox(res.newly_revealed_points) : null;
 
   slot.classList.remove('revealing');
   slot.classList.add('revealed');
-  slot.innerHTML = `
-    <div class="shard-back-media" style="${clip ? `clip-path:${clip};` : ''}background:${bg}"></div>
-    <div class="shard-back-info">
-      <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
-      <span class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
-    </div>
+
+  const mediaWrap = document.createElement('div');
+  mediaWrap.className = 'shard-back-media';
+  if (bbox) mediaWrap.style.clipPath = normalizedClipPath(res.newly_revealed_points, bbox);
+
+  if (videoUrl && bbox) {
+    // Uniquement le morceau de vidéo visible à travers la silhouette de cet
+    // éclat — pas la carte entière — et elle continue de jouer en boucle.
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    video.muted = true;
+    video.autoplay = true;
+    video.loop = true;
+    video.playsInline = true;
+    cropVideoToBBox(video, bbox);
+    mediaWrap.appendChild(video);
+  } else {
+    mediaWrap.style.background = TIER_REVEAL_BG[res.tier] || TIER_REVEAL_BG.common;
+  }
+
+  slot.innerHTML = '';
+  slot.appendChild(mediaWrap);
+  const info = document.createElement('div');
+  info.className = 'shard-back-info';
+  info.innerHTML = `
+    <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
+    <span class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
   `;
+  slot.appendChild(info);
+
+  // Après 2s, la carte complète apparaît et l'éclat "rentre" dedans : vidéo
+  // non recadrée + vrai puzzle de la carte, à la place du gros plan
+  // recadré sur ce seul éclat.
+  setTimeout(() => assembleCard(slot, res, videoUrl), 2000);
 
   const allRevealed = document.querySelectorAll('.shard-back:not(.revealed)').length === 0;
   if (allRevealed) await loadCollection();
+}
+
+async function assembleCard(slot, res, videoUrl) {
+  slot.classList.add('assembled');
+  const mediaWrap = slot.querySelector('.shard-back-media');
+  if (!mediaWrap) return;
+
+  let fragmentsHtml = '';
+  try {
+    const r = await fetch(`/api/collection/${res.media_id}/fragments`);
+    if (r.ok) fragmentsHtml = buildShatterSvg(await r.json());
+  } catch (_) { /* pas bloquant, la carte s'affiche quand même sans le puzzle */ }
+
+  mediaWrap.innerHTML = '';
+  mediaWrap.style.background = '';
+  if (videoUrl) {
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    video.muted = true;
+    video.autoplay = true;
+    video.loop = true;
+    video.playsInline = true;
+    mediaWrap.appendChild(video);
+  }
+  mediaWrap.insertAdjacentHTML('beforeend', fragmentsHtml);
+
+  const band = document.createElement('div');
+  band.className = 'meme-card-band';
+  band.innerHTML = `
+    <span class="pps hf-mono">${res.points_per_sec.toFixed(1)} PTS/S</span>
+    <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
+    <span class="mult hf-mono">×${res.quality_multiplier.toFixed(2)}</span>
+  `;
+  const info = slot.querySelector('.shard-back-info');
+  if (info) info.replaceWith(band);
 }
 
 function buildShatterSvg(fragments) {

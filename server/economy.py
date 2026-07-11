@@ -227,6 +227,8 @@ def apply_shard_grant(
     return {
         "media_id": media_id,
         "tier": card.tier,
+        "points_per_sec": card.points_per_sec,
+        "quality_multiplier": card.quality_multiplier,
         "shard_applied": applied,
         "overflow_to_dolloss": overflow,
         "unlocked": coll.unlocked,
