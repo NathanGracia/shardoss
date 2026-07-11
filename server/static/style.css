@@ -313,6 +313,7 @@ main { padding: 0 0 40px; }
   box-shadow: 0 10px 24px rgba(16, 22, 28, 0.06);
   overflow: hidden;
   position: relative;
+  cursor: pointer;
   transition: transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s ease;
 }
 .meme-card:hover {
@@ -321,6 +322,12 @@ main { padding: 0 0 40px; }
   /* Au-dessus de ses voisins de grille pour ne pas être rogné/masqué par
      la carte suivante quand l'agrandissement déborde de sa cellule. */
   z-index: 5;
+}
+/* Carte cliquée (voir selectCard/deselectCard dans app.js) : reste ainsi
+   tant qu'on ne clique pas ailleurs — liseré orange pour la distinguer du
+   simple survol, indépendant de :hover. */
+.meme-card.selected {
+  box-shadow: 0 0 0 2px var(--orange), 0 22px 44px rgba(16, 22, 28, 0.16);
 }
 
 .meme-card-media {
@@ -427,14 +434,28 @@ main { padding: 0 0 40px; }
 /* S'élève en s'estompant plutôt que de disparaître sur place. */
 .pop-counter.show.leaving { opacity: 0; transform: translate(-50%, calc(-100% - 24px)); }
 
+/* Masquée par défaut — allège la carte (pas de "1/3 SHARDS" ni de bouton
+   joker visibles en permanence) — révélée uniquement sur .meme-card.selected
+   (clic, voir selectCard dans app.js). max-height plutôt que display:none
+   pour un vrai dépliement animé au lieu d'un pop instantané. */
 .shard-count {
   position: relative;
   text-align: center;
   font-size: 10px;
   letter-spacing: 0.06em;
-  padding: 6px;
   color: rgba(16, 22, 28, 0.4);
-  border-top: 1px solid rgba(16, 22, 28, 0.08);
+  border-top: 1px solid transparent;
+  max-height: 0;
+  padding: 0 6px;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease, border-color 0.28s ease;
+}
+.meme-card.selected .shard-count {
+  max-height: 40px;
+  padding: 6px;
+  opacity: 1;
+  border-top-color: rgba(16, 22, 28, 0.08);
 }
 
 .empty-state {

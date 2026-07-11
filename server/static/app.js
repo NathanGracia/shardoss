@@ -10,6 +10,26 @@ let currentCollection = null;
 let activeFilter = 'all';
 const tierCursorKey = 'shardoss_tier_cursor';
 
+// Carte "sélectionnée" (clic) dans la grille — une seule à la fois. Révèle
+// la ligne shards/joker normalement masquée, et garde le son du meme actif
+// tant qu'elle reste sélectionnée (voir hoverOutMemeAudio dans renderCard).
+// Repartie à null à chaque reconstruction de la grille (renderGrid), le
+// nœud DOM devenant sinon une référence périmée.
+let selectedCardEl = null;
+
+function selectCard(el, video) {
+  if (selectedCardEl && selectedCardEl !== el) selectedCardEl.classList.remove('selected');
+  el.classList.add('selected');
+  selectedCardEl = el;
+  hoverInMemeAudio(video);
+}
+
+function deselectCard(el, video) {
+  el.classList.remove('selected');
+  if (selectedCardEl === el) selectedCardEl = null;
+  hoverOutMemeAudio(video);
+}
+
 // Toasts "+N" portés sur document.body (voir renderCard/setupLoopPop) —
 // suivis ici pour être explicitement nettoyés avant un re-render de la
 // grille, puisqu'ils ne sont pas des descendants de #card-grid.
@@ -1290,7 +1310,21 @@ async function renderCard(cardData) {
   videoObserver.observe(video);
   attachPauseRetry(video);
   mediaEl.addEventListener('mouseenter', () => hoverInMemeAudio(video));
-  mediaEl.addEventListener('mouseleave', () => hoverOutMemeAudio(video));
+  mediaEl.addEventListener('mouseleave', () => {
+    // Carte sélectionnée (clic) : le son reste actif même si la souris
+    // quitte la zone vidéo (par ex. pour aller cliquer le bouton joker sur
+    // la ligne shards révélée juste en dessous) — seul un clic ailleurs
+    // (voir deselectCard) ou le survol d'une autre carte le coupe.
+    if (el.classList.contains('selected')) return;
+    hoverOutMemeAudio(video);
+  });
+  el.addEventListener('click', () => {
+    if (el.classList.contains('selected')) {
+      deselectCard(el, video);
+    } else {
+      selectCard(el, video);
+    }
+  });
 
   // Le toast "+N" ne veut rien dire tant que la carte n'est pas
   // déverrouillée : seules les cartes unlocked comptent dans la somme des
@@ -1362,7 +1396,10 @@ async function renderCard(cardData) {
     useBtn.className = 'cooloss-shard-use-icon';
     useBtn.innerHTML = '<img src="cooloss-shard.png" alt="">';
     useBtn.title = 'Utiliser une shard cooloss';
-    useBtn.addEventListener('click', () => useCoolossShardOnCard(cardData.media_id, useBtn));
+    useBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // sinon le clic remonte au listener de la carte et la désélectionne aussitôt
+      useCoolossShardOnCard(cardData.media_id, useBtn);
+    });
     shardCount.appendChild(useBtn);
   }
 
@@ -1382,6 +1419,13 @@ async function renderGrid() {
   // toucherait jamais, il faut les retirer explicitement.
   activePopCounters.forEach((el) => el.remove());
   activePopCounters.clear();
+  // Le nœud sélectionné va être détruit par le rebuild qui suit — pas la
+  // peine de fader son audio proprement (il part avec le DOM), mais la
+  // musique de fond doit quand même être restaurée si elle était en
+  // sourdine à cause de cette sélection (sinon plus aucune référence pour
+  // la remonter un jour).
+  if (selectedCardEl) restoreMusic();
+  selectedCardEl = null;
 
   const cardsRaw = activeFilter === 'all'
     ? currentCollection.cards
@@ -1542,6 +1586,17 @@ async function pollTierNotifications() {
 
 (async function init() {
   setupFilterTabs();
+
+  // Clic n'importe où en dehors de la carte sélectionnée = désélection
+  // (voir selectCard/deselectCard). Le clic qui SÉLECTIONNE une carte
+  // remonte lui aussi jusqu'ici, mais son target est alors DANS
+  // selectedCardEl (déjà mis à jour par le listener de la carte, qui
+  // s'exécute avant en phase de bulle) — .contains() le laisse donc passer.
+  document.addEventListener('click', (e) => {
+    if (selectedCardEl && !selectedCardEl.contains(e.target)) {
+      deselectCard(selectedCardEl, selectedCardEl.querySelector('video'));
+    }
+  });
 
   document.getElementById('booster-modal-close').addEventListener('click', () => {
     document.getElementById('booster-modal').hidden = true;
