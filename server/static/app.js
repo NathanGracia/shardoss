@@ -293,7 +293,12 @@ async function renderBoosterSelection() {
         </div>
       </div>
     `;
-    body.querySelectorAll('.booster-option-buy').forEach((btn) => {
+    // [data-type] exclut le bouton d'achat de la shard cooloss, qui partage
+    // la même classe pour le style mais n'a pas de type de booster — sans
+    // ce filtre, il déclenchait AUSSI buyAndRevealBooster(undefined), qui
+    // achetait silencieusement un booster common (booster_type omis du JSON
+    // -> défaut serveur "common") au lieu d'acheter le joker.
+    body.querySelectorAll('.booster-option-buy[data-type]').forEach((btn) => {
       btn.addEventListener('click', () => buyAndRevealBooster(btn.dataset.type));
     });
     document.getElementById('cooloss-shard-buy-btn').addEventListener('click', buyCoolossShard);
