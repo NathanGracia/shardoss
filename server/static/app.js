@@ -651,7 +651,16 @@ function setupLoopPop(video, mediaEl, pointsPerSec) {
       setTimeout(() => counter.classList.remove('show'), 900);
     }
     video.currentTime = 0;
-    video.play().catch(() => {});
+    video.play().catch(() => {
+      // Le redémarrage après 'ended' est un play() sans geste utilisateur
+      // direct — si la carte vient d'être survolée (donc démutée), le
+      // navigateur peut le refuser purement et simplement, ce qui fige la
+      // vidéo sur sa dernière frame indéfiniment. On retente en muet pour
+      // ne jamais rester bloqué, quitte à perdre le son jusqu'au prochain
+      // survol (hoverInMemeAudio le redémute de toute façon).
+      video.muted = true;
+      video.play().catch(() => {});
+    });
   });
 }
 
