@@ -7,11 +7,41 @@ let mediaMetaCache = new Map();
 let currentCollection = null;
 let activeFilter = 'all';
 const tierCursorKey = 'shardoss_tier_cursor';
-const memeVolumeKey = 'shardoss_meme_volume';
 
-function getMemeVolume() {
-  const v = parseFloat(localStorage.getItem(memeVolumeKey));
+// ── Volume général ───────────────────────────────────────────────────────
+// Un seul réglage, partagé avec Memoss/Blindtoss/cooloss via le compte
+// (claims du token de session, voir cooloss/prisma/schema.prisma —
+// User.volume). Un invité sans compte retombe sur un repli local.
+const guestVolumeKey = 'shardoss_volume';
+// Anciennes clés (avant l'unification cross-apps) — lues une seule fois en
+// migration douce dans setupVolumeControl(), puis nettoyées.
+const legacyMemeVolumeKey = 'shardoss_meme_volume';
+const legacyMusicVolumeKey = 'shardoss_music_volume';
+
+function getSharedVolume() {
+  if (AccountWidget.session.loggedIn) return AccountWidget.session.volume;
+  const v = parseFloat(localStorage.getItem(guestVolumeKey));
   return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.15;
+}
+
+let _sharedVolumeDebounce = null;
+function setSharedVolume(v) {
+  // Reflété tout de suite en mémoire : les lectures qui suivent (hover,
+  // musique) voient la nouvelle valeur sans attendre le PATCH réseau.
+  AccountWidget.session.volume = v;
+  if (AccountWidget.session.loggedIn) {
+    if (_sharedVolumeDebounce) clearTimeout(_sharedVolumeDebounce);
+    _sharedVolumeDebounce = setTimeout(() => {
+      fetch('https://cooloss.nathangracia.com/api/profile', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ volume: v }),
+      }).catch(() => {});
+    }, 300);
+  } else {
+    localStorage.setItem(guestVolumeKey, v);
+  }
 }
 
 // Une seule vidéo à la fois joue du son (survoler une nouvelle carte coupe
@@ -43,7 +73,7 @@ function fadeVideoVolume(video, target, duration = 250) {
 function hoverInMemeAudio(video) {
   if (audioFadeVideo && audioFadeVideo !== video) fadeVideoVolume(audioFadeVideo, 0);
   audioFadeVideo = video;
-  const volume = getMemeVolume();
+  const volume = getSharedVolume();
   fadeVideoVolume(video, volume);
   // La musique baisse de moitié pendant que le son du meme se fait entendre
   // — inutile si le son des memes est lui-même coupé (rien à mettre en avant).
@@ -56,54 +86,65 @@ function hoverOutMemeAudio(video) {
   restoreMusic();
 }
 
-function setupMemeVolumeControl() {
-  const slider = document.getElementById('meme-volume-slider');
-  const icon = document.getElementById('meme-volume-icon');
-  if (!slider) return;
-  const volume = getMemeVolume();
-  slider.value = volume;
-  icon.textContent = volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊';
-  slider.addEventListener('input', () => {
-    const v = parseFloat(slider.value);
-    localStorage.setItem(memeVolumeKey, v);
-    icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
-    // Applique en direct si une carte est en train de fondre le son.
-    if (audioFadeVideo) fadeVideoVolume(audioFadeVideo, v, 60);
-  });
-}
-
-// ── Musique de fond ────────────────────────────────────────────────────────
-const musicVolumeKey = 'shardoss_music_volume';
-const MUSIC_TRACKS = [
-  'music/alps-journey.mp3',
-  'music/hanging-on-the-mont-blanc.mp3',
-  'music/into-the-steep.mp3',
-];
-
-function getMusicVolume() {
-  const v = parseFloat(localStorage.getItem(musicVolumeKey));
-  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.15;
-}
-
 // Référence posée par setupBackgroundMusic() — lue par hoverIn/OutMemeAudio
 // pour baisser (« duck ») la musique pendant qu'un meme se fait entendre.
 let bgMusicAudio = null;
 
 function duckMusic() {
   if (!bgMusicAudio) return;
-  fadeVideoVolume(bgMusicAudio, getMusicVolume() * 0.5);
+  fadeVideoVolume(bgMusicAudio, getSharedVolume() * 0.5);
 }
 
 function restoreMusic() {
   if (!bgMusicAudio) return;
-  fadeVideoVolume(bgMusicAudio, getMusicVolume());
+  fadeVideoVolume(bgMusicAudio, getSharedVolume());
 }
+
+function setupVolumeControl() {
+  const slider = document.getElementById('volume-slider');
+  const icon = document.getElementById('volume-icon');
+  if (!slider) return;
+
+  // Migration douce, une seule fois : les deux anciennes clés (son des
+  // memes / musique, désormais unifiées) servent de point de départ si le
+  // réglage courant (compte ou invité) est encore vierge — pour ne pas
+  // imposer 15% d'office à quelqu'un qui avait déjà réglé autre chose.
+  const legacyRaw = localStorage.getItem(legacyMemeVolumeKey) ?? localStorage.getItem(legacyMusicVolumeKey);
+  const legacy = legacyRaw !== null ? parseFloat(legacyRaw) : NaN;
+  const hasLegacy = Number.isFinite(legacy) && legacy >= 0 && legacy <= 1;
+  if (AccountWidget.session.loggedIn) {
+    if (hasLegacy && AccountWidget.session.volume === 0.15) setSharedVolume(legacy);
+  } else if (hasLegacy && localStorage.getItem(guestVolumeKey) === null) {
+    localStorage.setItem(guestVolumeKey, String(legacy));
+  }
+  localStorage.removeItem(legacyMemeVolumeKey);
+  localStorage.removeItem(legacyMusicVolumeKey);
+
+  const volume = getSharedVolume();
+  slider.value = volume;
+  icon.textContent = volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊';
+  slider.addEventListener('input', () => {
+    const v = parseFloat(slider.value);
+    setSharedVolume(v);
+    icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+    // Applique en direct : le son du meme en cours de survol (s'il y en a
+    // un) va au nouveau volume plein ; la musique reste à moitié si un
+    // survol est en cours (ne casse pas le duck en cours), sinon au plein.
+    if (audioFadeVideo) fadeVideoVolume(audioFadeVideo, v, 60);
+    if (bgMusicAudio) fadeVideoVolume(bgMusicAudio, audioFadeVideo ? v * 0.5 : v, 60);
+  });
+}
+
+// ── Musique de fond ────────────────────────────────────────────────────────
+const MUSIC_TRACKS = [
+  'music/alps-journey.mp3',
+  'music/hanging-on-the-mont-blanc.mp3',
+  'music/into-the-steep.mp3',
+];
 
 function setupBackgroundMusic() {
   const audio = document.getElementById('bg-music');
-  const slider = document.getElementById('music-volume-slider');
-  const icon = document.getElementById('music-volume-icon');
-  if (!audio || !slider) return;
+  if (!audio) return;
   bgMusicAudio = audio;
 
   // Ordre mélangé une fois par chargement de page, puis on boucle dessus —
@@ -126,31 +167,15 @@ function setupBackgroundMusic() {
     playAt(pos);
   });
 
-  const volume = getMusicVolume();
+  const volume = getSharedVolume();
   audio.volume = volume;
-  slider.value = volume;
-  icon.textContent = volume === 0 ? '🔇' : '🎵';
-
   if (volume > 0) playAt(pos);
 
   // L'autoplay avec son est généralement bloqué tant que la page n'a reçu
   // aucun geste utilisateur — filet de secours, on retente au premier clic.
   document.addEventListener('pointerdown', () => {
-    if (audio.paused && getMusicVolume() > 0) audio.play().catch(() => {});
+    if (audio.paused && getSharedVolume() > 0) audio.play().catch(() => {});
   }, { once: true });
-
-  slider.addEventListener('input', () => {
-    const v = parseFloat(slider.value);
-    localStorage.setItem(musicVolumeKey, v);
-    audio.volume = v;
-    icon.textContent = v === 0 ? '🔇' : '🎵';
-    if (v === 0) {
-      audio.pause();
-    } else if (audio.paused) {
-      if (!audio.src) playAt(pos);
-      else audio.play().catch(() => {});
-    }
-  });
 }
 
 // La grille de collection charge une vidéo autoplay par carte touchée — au
@@ -702,8 +727,6 @@ async function pollTierNotifications() {
 
 (async function init() {
   setupFilterTabs();
-  setupMemeVolumeControl();
-  setupBackgroundMusic();
 
   document.getElementById('booster-modal-close').addEventListener('click', () => {
     document.getElementById('booster-modal').hidden = true;
@@ -718,8 +741,12 @@ async function pollTierNotifications() {
     document.getElementById('tier-modal').hidden = true;
   });
 
+  // Le volume partagé dépend de AccountWidget.session (compte connecté ou
+  // invité) — doit être chargé avant setupVolumeControl()/setupBackgroundMusic().
   await AccountWidget.load();
   AccountWidget.mount('account-widget');
+  setupVolumeControl();
+  setupBackgroundMusic();
   if (AccountWidget.session.loggedIn) {
     await loadCollection();
     pollTierNotifications();

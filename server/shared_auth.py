@@ -11,7 +11,7 @@ stateless (HMAC local, pas d'appel réseau à cooloss) : si cooloss tombe, les
 sessions déjà ouvertes continuent de fonctionner.
 
 Format du token : "<payload base64url>.<hmac hex>"
-payload (JSON) : { uid, username, displayName, isAdmin, isHabitue, avatarFile, exp }
+payload (JSON) : { uid, username, displayName, isAdmin, isHabitue, avatarFile, volume, exp }
 """
 import base64
 import hashlib
@@ -28,6 +28,9 @@ class SharedClaims(TypedDict):
     username: str
     isAdmin: bool
     avatarFile: Optional[str]
+    # Volume général (0..1), partagé avec Memoss/Blindtoss/cooloss — voir
+    # User.volume dans cooloss/prisma/schema.prisma.
+    volume: float
     exp: int
 
 

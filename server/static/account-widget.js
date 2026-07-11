@@ -5,14 +5,14 @@
 // fetch /api/whoami et rend le bouton/dropdown.
 const AccountWidget = (() => {
   const COOLOSS = 'https://cooloss.nathangracia.com';
-  let session = { loggedIn: false, isAdmin: false, username: null, displayName: null, avatarFile: null };
+  let session = { loggedIn: false, isAdmin: false, username: null, displayName: null, avatarFile: null, volume: 0.15 };
 
   async function load() {
     try {
       const r = await fetch('/api/whoami');
       session = await r.json();
     } catch (_) {
-      session = { loggedIn: false, isAdmin: false, username: null, displayName: null, avatarFile: null };
+      session = { loggedIn: false, isAdmin: false, username: null, displayName: null, avatarFile: null, volume: 0.15 };
     }
     return session;
   }

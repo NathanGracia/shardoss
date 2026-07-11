@@ -61,6 +61,7 @@ def whoami(request: Request):
         "isAdmin": bool(claims.get("isAdmin")),
         "isHabitue": bool(claims.get("isHabitue")),
         "avatarFile": claims.get("avatarFile"),
+        "volume": claims.get("volume", 0.15),
     }
 
 
