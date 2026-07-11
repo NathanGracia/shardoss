@@ -739,7 +739,7 @@ function playRevealChime(tier, sequenceProgress = 0) {
       osc.type = i === 0 ? 'triangle' : 'sine'; // fondamentale un peu plus corsée que les harmoniques
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(vol * (0.16 - i * 0.015), start + 0.025);
+      gain.gain.linearRampToValueAtTime(vol * (0.4 - i * 0.035), start + 0.025);
       gain.gain.exponentialRampToValueAtTime(0.001, start + 0.9);
       osc.connect(gain);
       gain.connect(dry);
@@ -770,7 +770,7 @@ function playRevealRiser(durationMs) {
     filter.frequency.setValueAtTime(300, start);
     filter.frequency.exponentialRampToValueAtTime(3200, start + dur);
     gain.gain.setValueAtTime(0, start);
-    gain.gain.linearRampToValueAtTime(vol * 0.1, start + dur * 0.7);
+    gain.gain.linearRampToValueAtTime(vol * 0.22, start + dur * 0.7);
     gain.gain.linearRampToValueAtTime(0, start + dur);
     osc.connect(filter);
     filter.connect(gain);
@@ -795,7 +795,7 @@ function playImpactThump(tier) {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(baseFreq * 2, start);
     osc.frequency.exponentialRampToValueAtTime(baseFreq, start + 0.12);
-    gain.gain.setValueAtTime(vol * 0.35, start);
+    gain.gain.setValueAtTime(vol * 0.6, start);
     gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
     osc.connect(gain);
     gain.connect(dry);
@@ -885,6 +885,10 @@ function renderShardBacks(results) {
   `;
   if (subtitle) subtitle.textContent = `1 / ${ordered.length} — CLIQUE POUR RÉVÉLER`;
 
+  // La musique de fond passe au second plan pour toute la durée du reveal
+  // (pas juste au moment de l'impact) — sinon les accords/riser/thump
+  // restent noyés dedans même après les avoir renforcés en volume.
+  duckMusic();
   renderSpotlightSlot(ordered, 0);
 }
 
@@ -892,6 +896,7 @@ function renderSpotlightSlot(ordered, index) {
   const subtitle = document.getElementById('booster-modal-subtitle');
   if (index >= ordered.length) {
     if (subtitle) subtitle.textContent = 'PACK OUVERT';
+    restoreMusic();
     return;
   }
   const res = ordered[index];
@@ -1540,9 +1545,11 @@ async function pollTierNotifications() {
 
   document.getElementById('booster-modal-close').addEventListener('click', () => {
     document.getElementById('booster-modal').hidden = true;
+    restoreMusic(); // sécurité si fermé en plein milieu d'un reveal (voir duckMusic dans renderShardBacks)
   });
   document.getElementById('booster-modal-ok').addEventListener('click', () => {
     document.getElementById('booster-modal').hidden = true;
+    restoreMusic();
   });
   document.getElementById('tier-modal-close').addEventListener('click', () => {
     document.getElementById('tier-modal').hidden = true;
