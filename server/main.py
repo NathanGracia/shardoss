@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import admin_router
 import collection_router
 import economy_router
 import scheduler
@@ -42,6 +43,7 @@ app.include_router(economy_router.router)
 app.include_router(economy_router.cooloss_shard_router)
 app.include_router(tiers_router.router)
 app.include_router(scheduler.router)
+app.include_router(admin_router.router)
 
 
 @app.on_event("startup")

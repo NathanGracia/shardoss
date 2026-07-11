@@ -74,3 +74,34 @@ def init_db() -> None:
                 _conn.commit()
             except Exception:
                 pass
+
+    # Seed des tables de loot éditables en admin — une seule fois, au tout
+    # premier démarrage après ce déploiement (les tables sont neuves, créées
+    # vides par create_all juste au-dessus). Import différé : economy.py
+    # importe models, pas db, donc pas de cycle, mais on garde le style du
+    # fichier (imports tardifs pour les dépendances entre modules internes).
+    from economy import BOOSTER_PRICE_GROWTH, BOOSTER_TYPES, COOLOSS_SHARD_LOOT_CHANCE, COOLOSS_SHARD_PRICE_BASE, COOLOSS_SHARD_PRICE_GROWTH
+    from models import BoosterConfig, LootSettings
+
+    with Session(engine) as _session:
+        if _session.get(LootSettings, 1) is None:
+            _session.add(LootSettings(
+                id=1,
+                booster_price_growth=BOOSTER_PRICE_GROWTH,
+                cooloss_shard_price_base=COOLOSS_SHARD_PRICE_BASE,
+                cooloss_shard_price_growth=COOLOSS_SHARD_PRICE_GROWTH,
+                cooloss_shard_loot_chance=COOLOSS_SHARD_LOOT_CHANCE,
+            ))
+        for _booster_type, _meta in BOOSTER_TYPES.items():
+            if _session.get(BoosterConfig, _booster_type) is None:
+                _session.add(BoosterConfig(
+                    booster_type=_booster_type,
+                    label=_meta["label"],
+                    shards=_meta["shards"],
+                    price_base=_meta["price_base"],
+                    weight_common=_meta["weights"]["common"],
+                    weight_rare=_meta["weights"]["rare"],
+                    weight_epic=_meta["weights"]["epic"],
+                    weight_legendary=_meta["weights"]["legendary"],
+                ))
+        _session.commit()

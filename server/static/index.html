@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20">
+  <link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
   <video class="page-wallpaper" src="wallpaper.mp4?v=1" autoplay muted loop playsinline></video>
@@ -30,6 +30,7 @@
       <span class="meme-volume-icon" id="volume-icon">🔊</span>
       <input type="range" class="meme-volume-slider" id="volume-slider" min="0" max="1" step="0.01">
     </div>
+    <button class="admin-btn" id="admin-btn" hidden title="Gérer les loot tables">⚙</button>
     <div id="account-widget"></div>
   </header>
 
@@ -85,7 +86,24 @@
     </div>
   </div>
 
+  <!-- Modal admin : loot tables -->
+  <div class="modal-overlay" id="admin-modal" hidden>
+    <div class="modal-card modal-card--wide" id="admin-modal-card">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title hf-cond">LOOT TABLES</div>
+          <div class="modal-subtitle">RÉGLAGES ADMIN — EFFET IMMÉDIAT</div>
+        </div>
+        <button class="modal-close" id="admin-modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="admin-modal-body"></div>
+      <div class="modal-footer">
+        <button class="modal-ok" id="admin-modal-save">ENREGISTRER</button>
+      </div>
+    </div>
+  </div>
+
   <script src="account-widget.js?v=3"></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>

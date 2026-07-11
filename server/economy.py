@@ -11,13 +11,19 @@ from typing import Optional
 
 from sqlmodel import Session, func, select
 
-from models import MemeCard, PlayerCollection, PlayerCurrency, ShardLog
+from models import BoosterConfig, LootSettings, MemeCard, PlayerCollection, PlayerCurrency, ShardLog
 
 BASE_POINTS_PER_SEC = {"common": 1.0, "rare": 3.0, "epic": 6.0, "legendary": 10.0}
 SHARDS_REQUIRED = {"common": 3, "rare": 6, "epic": 12, "legendary": 24}
 QUALITY_MULTIPLIER_MIN = 0.8
 QUALITY_MULTIPLIER_MAX = 1.5
 
+# Les constantes ci-dessous (BOOSTER_PRICE_GROWTH, BOOSTER_TYPES,
+# COOLOSS_SHARD_*) ne sont PLUS la source de vérité en runtime — elles ne
+# servent qu'à SEEDER les tables BoosterConfig/LootSettings au tout premier
+# démarrage (voir db.py, init_db). La logique métier lit toujours la DB
+# (via get_loot_settings/get_booster_config ci-dessous), modifiable en live
+# depuis /api/admin/loot-config sans redéploiement.
 BOOSTER_PRICE_GROWTH = 1.15  # appliqué au prix de base de CHAQUE type, sur SON PROPRE compteur d'achats
 
 # Trois produits de booster au choix (achat, pas juste ouverture) : moins de
@@ -266,27 +272,53 @@ def convert_excess_to_dolloss(
     )
 
 
-def booster_price(booster_type: str, boosters_purchased_count: int) -> float:
-    base = BOOSTER_TYPES[booster_type]["price_base"]
-    return base * (BOOSTER_PRICE_GROWTH ** boosters_purchased_count)
+def get_loot_settings(session: Session) -> LootSettings:
+    settings = session.get(LootSettings, 1)
+    if settings is None:
+        # Ne devrait arriver qu'en dev sans avoir jamais lancé init_db —
+        # filet de repli plutôt qu'un crash, avec les mêmes valeurs de seed.
+        settings = LootSettings(id=1)
+        session.add(settings)
+        session.flush()
+    return settings
+
+
+def get_booster_config(session: Session, booster_type: str) -> Optional[BoosterConfig]:
+    return session.get(BoosterConfig, booster_type)
+
+
+def get_all_booster_configs(session: Session) -> list[BoosterConfig]:
+    # Ordre stable et prévisible pour l'affichage (boutique + admin) —
+    # BOOSTER_TYPES ne sert plus que de seed mais garde l'ordre voulu.
+    order = list(BOOSTER_TYPES.keys())
+    rows = {c.booster_type: c for c in session.exec(select(BoosterConfig)).all()}
+    return [rows[t] for t in order if t in rows]
+
+
+def booster_price(session: Session, booster_type: str, boosters_purchased_count: int) -> float:
+    config = get_booster_config(session, booster_type)
+    growth = get_loot_settings(session).booster_price_growth
+    return config.price_base * (growth ** boosters_purchased_count)
 
 
 # Shard "cooloss" : un joker, pas liée à un media_id — appliquable sur
 # n'importe quelle carte verrouillée au choix du joueur. Prix premium (une
 # shard cooloss garantit exactement la carte qu'on veut, contrairement à un
 # tirage de booster) ; même courbe de croissance que les boosters, sur son
-# propre compteur.
+# propre compteur. Valeurs par défaut/seed uniquement — voir LootSettings.
 COOLOSS_SHARD_PRICE_BASE = 400.0
 COOLOSS_SHARD_PRICE_GROWTH = 1.15
 
 # Probabilité, par tirage individuel dans N'IMPORTE QUEL booster (indépendant
 # du type acheté), qu'il se transforme en shard cooloss au lieu du tirage
 # pondéré par tier habituel — le "loot" évoqué à côté de l'achat direct.
+# Valeur par défaut/seed uniquement — voir LootSettings.
 COOLOSS_SHARD_LOOT_CHANCE = 0.04
 
 
-def cooloss_shard_price(purchased_count: int) -> float:
-    return COOLOSS_SHARD_PRICE_BASE * (COOLOSS_SHARD_PRICE_GROWTH ** purchased_count)
+def cooloss_shard_price(session: Session, purchased_count: int) -> float:
+    settings = get_loot_settings(session)
+    return settings.cooloss_shard_price_base * (settings.cooloss_shard_price_growth ** purchased_count)
 
 
 def apply_cooloss_shard(session: Session, account_uid: int, media_id: str) -> dict:

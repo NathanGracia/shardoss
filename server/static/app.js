@@ -249,6 +249,120 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ── Admin : loot tables ──────────────────────────────────────────────────
+const ADMIN_BOOSTER_ORDER = ['common', 'rare', 'epic'];
+
+async function openAdminModal() {
+  document.getElementById('admin-modal').hidden = false;
+  await renderAdminForm();
+}
+
+async function renderAdminForm() {
+  const body = document.getElementById('admin-modal-body');
+  body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.5)" class="hf-mono">Chargement…</div>`;
+  try {
+    const r = await fetch('/api/admin/loot-config');
+    if (!r.ok) throw new Error('fetch failed');
+    const config = await r.json();
+
+    body.innerHTML = `
+      <div class="admin-section-title">RÉGLAGES GÉNÉRAUX</div>
+      <div class="admin-field-grid">
+        <div class="admin-field">
+          <label>Croissance prix booster</label>
+          <input type="number" step="0.01" min="1.001" id="admin-booster-price-growth" value="${config.booster_price_growth}">
+        </div>
+        <div class="admin-field">
+          <label>Prix de base — shard cooloss</label>
+          <input type="number" step="1" min="0" id="admin-cooloss-price-base" value="${config.cooloss_shard_price_base}">
+        </div>
+        <div class="admin-field">
+          <label>Croissance prix — shard cooloss</label>
+          <input type="number" step="0.01" min="1.001" id="admin-cooloss-price-growth" value="${config.cooloss_shard_price_growth}">
+        </div>
+        <div class="admin-field">
+          <label>Chance de loot — shard cooloss (0 à 1)</label>
+          <input type="number" step="0.01" min="0" max="1" id="admin-cooloss-loot-chance" value="${config.cooloss_shard_loot_chance}">
+        </div>
+      </div>
+      ${ADMIN_BOOSTER_ORDER.filter((type) => config.boosters[type]).map((type) => {
+        const b = config.boosters[type];
+        return `
+          <div class="admin-booster-box">
+            <div class="admin-booster-box-title hf-cond">${esc(b.label)} (${type})</div>
+            <div class="admin-field-grid">
+              <div class="admin-field"><label>Label affiché</label><input type="text" id="admin-${type}-label" value="${esc(b.label)}"></div>
+              <div class="admin-field"><label>Shards par ouverture</label><input type="number" step="1" min="1" max="20" id="admin-${type}-shards" value="${b.shards}"></div>
+              <div class="admin-field"><label>Prix de base</label><input type="number" step="1" min="0" id="admin-${type}-price" value="${b.price_base}"></div>
+            </div>
+            <div class="admin-weights-label">POIDS DE TIRAGE PAR TIER (relatifs entre eux, pas besoin de sommer à 100)</div>
+            <div class="admin-field-grid">
+              <div class="admin-field"><label>Common</label><input type="number" step="1" min="0" id="admin-${type}-w-common" value="${b.weight_common}"></div>
+              <div class="admin-field"><label>Rare</label><input type="number" step="1" min="0" id="admin-${type}-w-rare" value="${b.weight_rare}"></div>
+              <div class="admin-field"><label>Epic</label><input type="number" step="1" min="0" id="admin-${type}-w-epic" value="${b.weight_epic}"></div>
+              <div class="admin-field"><label>Legendary</label><input type="number" step="1" min="0" id="admin-${type}-w-legendary" value="${b.weight_legendary}"></div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+      <div id="admin-form-message"></div>
+    `;
+  } catch (_) {
+    body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.6)">Impossible de charger les réglages.</div>`;
+  }
+}
+
+async function saveAdminConfig() {
+  const btn = document.getElementById('admin-modal-save');
+  const payload = {
+    booster_price_growth: parseFloat(document.getElementById('admin-booster-price-growth').value),
+    cooloss_shard_price_base: parseFloat(document.getElementById('admin-cooloss-price-base').value),
+    cooloss_shard_price_growth: parseFloat(document.getElementById('admin-cooloss-price-growth').value),
+    cooloss_shard_loot_chance: parseFloat(document.getElementById('admin-cooloss-loot-chance').value),
+    boosters: {},
+  };
+  ADMIN_BOOSTER_ORDER.forEach((type) => {
+    const labelEl = document.getElementById(`admin-${type}-label`);
+    if (!labelEl) return;
+    payload.boosters[type] = {
+      label: labelEl.value,
+      shards: parseInt(document.getElementById(`admin-${type}-shards`).value, 10),
+      price_base: parseFloat(document.getElementById(`admin-${type}-price`).value),
+      weight_common: parseInt(document.getElementById(`admin-${type}-w-common`).value, 10),
+      weight_rare: parseInt(document.getElementById(`admin-${type}-w-rare`).value, 10),
+      weight_epic: parseInt(document.getElementById(`admin-${type}-w-epic`).value, 10),
+      weight_legendary: parseInt(document.getElementById(`admin-${type}-w-legendary`).value, 10),
+    };
+  });
+
+  const msg = document.getElementById('admin-form-message');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/admin/loot-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      if (msg) {
+        msg.className = 'admin-error';
+        msg.textContent = typeof err.detail === 'string' ? err.detail : 'Erreur de validation.';
+      }
+      return;
+    }
+    if (msg) {
+      msg.className = 'admin-saved';
+      msg.textContent = '✓ Enregistré — effectif immédiatement.';
+      setTimeout(() => { msg.textContent = ''; }, 2500);
+    }
+  } catch (_) {
+    if (msg) { msg.className = 'admin-error'; msg.textContent = 'Erreur réseau.'; }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderEconomyBar(state) {
   const el = document.getElementById('economy-bar');
   el.innerHTML = `
@@ -960,11 +1074,20 @@ async function pollTierNotifications() {
   document.getElementById('tier-modal-ok').addEventListener('click', () => {
     document.getElementById('tier-modal').hidden = true;
   });
+  document.getElementById('admin-modal-close').addEventListener('click', () => {
+    document.getElementById('admin-modal').hidden = true;
+  });
+  document.getElementById('admin-modal-save').addEventListener('click', saveAdminConfig);
 
   // Le volume partagé dépend de AccountWidget.session (compte connecté ou
   // invité) — doit être chargé avant setupVolumeControl()/setupBackgroundMusic().
   await AccountWidget.load();
   AccountWidget.mount('account-widget');
+  if (AccountWidget.session.isAdmin) {
+    const adminBtn = document.getElementById('admin-btn');
+    adminBtn.hidden = false;
+    adminBtn.addEventListener('click', openAdminModal);
+  }
   setupVolumeControl();
   setupBackgroundMusic();
   if (AccountWidget.session.loggedIn) {

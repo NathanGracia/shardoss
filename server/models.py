@@ -83,3 +83,30 @@ class CardFragments(SQLModel, table=True):
     polygons_json: str  # JSON: [[[x,y], ...], ...] polygones normalisés 0..1
     reveal_order_json: str  # JSON: [int, ...] ordre de révélation, index de pièce
     generated_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+
+
+# Table de loot éditable en admin (voir admin_router.py) — une ligne par
+# type de booster. Remplace les constantes figées BOOSTER_TYPES
+# d'economy.py, qui ne servent plus que de valeurs de seed au tout premier
+# démarrage (voir db.py).
+class BoosterConfig(SQLModel, table=True):
+    __tablename__ = "booster_config"
+    booster_type: str = Field(primary_key=True)  # "common" | "rare" | "epic"
+    label: str
+    shards: int  # nombre de tirages à l'ouverture de CE booster
+    price_base: float
+    weight_common: int
+    weight_rare: int
+    weight_epic: int
+    weight_legendary: int
+
+
+# Réglages globaux de loot hors boosters (shard cooloss) + la courbe de prix
+# partagée par les boosters — une seule ligne (id=1, singleton).
+class LootSettings(SQLModel, table=True):
+    __tablename__ = "loot_settings"
+    id: Optional[int] = Field(default=1, primary_key=True)
+    booster_price_growth: float = Field(default=1.15)
+    cooloss_shard_price_base: float = Field(default=400.0)
+    cooloss_shard_price_growth: float = Field(default=1.15)
+    cooloss_shard_loot_chance: float = Field(default=0.04)

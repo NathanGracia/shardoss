@@ -173,6 +173,19 @@ header {
 }
 .booster-buy:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
+.admin-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(16, 22, 28, 0.15);
+  background: rgba(255, 255, 255, 0.5);
+  color: rgba(16, 22, 28, 0.55);
+  font-size: 15px;
+  cursor: pointer;
+  flex: none;
+}
+.admin-btn:hover { background: rgba(255, 255, 255, 0.8); color: var(--ink); }
+
 .account-widget-login { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
 .account-widget { position: relative; }
 .account-widget-trigger {
@@ -750,3 +763,68 @@ main { padding: 0 0 40px; }
 }
 .shard-back-media svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .shard-back-info { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+/* ── Admin : loot tables ──────────────────────────────────────────────── */
+.admin-section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.admin-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.admin-field label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(16, 22, 28, 0.45);
+  margin-bottom: 4px;
+}
+.admin-field input {
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 22, 28, 0.15);
+  background: rgba(255, 255, 255, 0.7);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--ink);
+}
+.admin-booster-box {
+  border: 1px solid rgba(16, 22, 28, 0.12);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.admin-booster-box-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.admin-weights-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(16, 22, 28, 0.4);
+  margin: 12px 0 6px;
+}
+.admin-error {
+  color: #d64545;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px 0 0;
+}
+.admin-saved {
+  color: #2f9e57;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px 0 0;
+}
