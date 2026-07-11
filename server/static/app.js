@@ -881,6 +881,8 @@ async function loadCollection() {
   }
   currentCollection = await r.json();
   renderEconomyBar(currentCollection);
+  const completedCount = currentCollection.cards.filter((c) => c.unlocked).length;
+  document.getElementById('cards-completed').textContent = `${completedCount} CARTE${completedCount > 1 ? 'S' : ''} COMPLÈTE${completedCount > 1 ? 'S' : ''}`;
   document.getElementById('shards-held').textContent =
     `${currentCollection.cards.reduce((sum, c) => sum + c.shards_owned, 0)} SHARDS DÉTENUS`;
   renderGrid();

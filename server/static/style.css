@@ -221,8 +221,13 @@ header {
   cursor: pointer;
 }
 .filter-tab.active { color: var(--ink); border-bottom-color: var(--orange); }
-.shards-held {
+.cards-completed {
   margin-left: auto;
+  font-size: 11px;
+  color: rgba(16, 22, 28, 0.4);
+  letter-spacing: 0.08em;
+}
+.shards-held {
   font-size: 11px;
   color: rgba(16, 22, 28, 0.4);
   letter-spacing: 0.08em;
