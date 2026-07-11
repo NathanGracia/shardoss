@@ -252,6 +252,30 @@ function esc(s) {
 // ── Admin : loot tables ──────────────────────────────────────────────────
 const ADMIN_BOOSTER_ORDER = ['common', 'rare', 'epic'];
 
+// account-widget.js est partagé tel quel entre Memoss/Shardoss/Blindtoss
+// (voir son en-tête) — on n'y touche pas pour un lien propre à Shardoss.
+// Injecté après coup dans son dropdown, juste après le badge "Admin" déjà
+// rendu par ce module quand isAdmin est vrai.
+function addAdminMenuItem() {
+  if (!AccountWidget.session.isAdmin) return;
+  const menu = document.getElementById('account-widget-menu');
+  if (!menu) return;
+  const link = document.createElement('a');
+  link.href = '#';
+  link.textContent = '⚙ Loot tables';
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    menu.hidden = true;
+    openAdminModal();
+  });
+  const badge = menu.querySelector('.account-widget-badge');
+  if (badge) {
+    badge.insertAdjacentElement('afterend', link);
+  } else {
+    menu.insertBefore(link, menu.firstChild);
+  }
+}
+
 async function openAdminModal() {
   document.getElementById('admin-modal').hidden = false;
   await renderAdminForm();
@@ -1083,11 +1107,7 @@ async function pollTierNotifications() {
   // invité) — doit être chargé avant setupVolumeControl()/setupBackgroundMusic().
   await AccountWidget.load();
   AccountWidget.mount('account-widget');
-  if (AccountWidget.session.isAdmin) {
-    const adminBtn = document.getElementById('admin-btn');
-    adminBtn.hidden = false;
-    adminBtn.addEventListener('click', openAdminModal);
-  }
+  addAdminMenuItem();
   setupVolumeControl();
   setupBackgroundMusic();
   if (AccountWidget.session.loggedIn) {
