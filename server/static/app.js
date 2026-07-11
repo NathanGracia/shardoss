@@ -663,40 +663,145 @@ const RARITY_ORDER = { common: 0, rare: 1, epic: 2, legendary: 3, cooloss: 4 };
 // rares, ça laisse le suspense monter avant l'impact.
 const REVEAL_HOLD_MS = { common: 200, rare: 260, epic: 340, legendary: 520, cooloss: 260 };
 
-// Carillon de révélation synthétisé (Web Audio, pas de fichier son à
-// charger) — un arpège de plus en plus riche/aigu selon la rareté, calé sur
-// le volume général partagé (voir getSharedVolume) pour ne jamais surprendre
-// quelqu'un qui a mis le son bas.
+// Son de révélation synthétisé (Web Audio, aucun fichier à charger) — voix
+// partagées par un bus commun (dry + reverb algorithmique générée) pour que
+// les accords sonnent moins "sinus nus", et une hauteur qui monte au fil de
+// TOUT le pack (pas seulement par tier) pour construire une tension
+// musicale sur l'ouverture entière. Tout est calé sur le volume général
+// partagé (getSharedVolume) pour ne jamais surprendre quelqu'un qui l'a mis
+// bas, et jamais bloquant pour la révélation (try/catch partout).
 let revealAudioCtx = null;
-const REVEAL_CHIME_FREQS = {
-  common: [523.25],
-  rare: [523.25, 659.25],
-  epic: [523.25, 659.25, 783.99],
-  legendary: [523.25, 659.25, 783.99, 1046.5],
-  cooloss: [659.25, 987.77],
+let revealDryBus = null;
+let revealReverbSend = null;
+function getRevealAudioGraph() {
+  if (!revealAudioCtx) {
+    revealAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    revealDryBus = revealAudioCtx.createGain();
+    revealDryBus.gain.value = 1;
+    revealDryBus.connect(revealAudioCtx.destination);
+
+    // Réverbe par convolution avec une impulse response générée (bruit
+    // blanc à décroissance exponentielle) — donne un peu de "salle" aux
+    // carillons/accords plutôt que des sinus complètement secs, sans
+    // dépendre d'un fichier .wav externe.
+    const ctx = revealAudioCtx;
+    const duration = 1.4;
+    const length = Math.floor(ctx.sampleRate * duration);
+    const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+      }
+    }
+    const convolver = ctx.createConvolver();
+    convolver.buffer = impulse;
+    const reverbGain = ctx.createGain();
+    reverbGain.gain.value = 0.32;
+    convolver.connect(reverbGain);
+    reverbGain.connect(revealDryBus);
+    revealReverbSend = convolver;
+  }
+  return { ctx: revealAudioCtx, dry: revealDryBus, wet: revealReverbSend };
+}
+
+// Accords (intervalles en demi-tons depuis la fondamentale) plutôt qu'un
+// simple arpège de notes qui montent — cooloss a une couleur harmonique à
+// part (tierce mineure/quarte augmentée) pour rester identifiable comme
+// "objet à part", pas un 5e tier au-dessus de legendary.
+const REVEAL_CHORD_INTERVALS = {
+  common: [0],
+  rare: [0, 7],
+  epic: [0, 4, 7],
+  legendary: [0, 4, 7, 11, 12],
+  cooloss: [0, 6, 10, 15],
 };
-function playRevealChime(tier) {
+const REVEAL_ROOT_FREQ = 392; // Sol4 — assez grave pour laisser de la marge à la montée sur tout le pack
+
+// sequenceProgress (0..1) = position dans le lot en cours d'ouverture —
+// transpose l'accord jusqu'à une quinte plus haut sur le dernier tirage,
+// pour que le pack tout entier ait un arc musical ascendant au lieu que
+// chaque éclat sonne en vase clos.
+function playRevealChime(tier, sequenceProgress = 0) {
   const vol = getSharedVolume();
   if (vol <= 0) return;
   try {
-    if (!revealAudioCtx) revealAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = revealAudioCtx;
-    const freqs = REVEAL_CHIME_FREQS[tier] || REVEAL_CHIME_FREQS.common;
-    freqs.forEach((freq, i) => {
+    const { ctx, dry, wet } = getRevealAudioGraph();
+    const intervals = REVEAL_CHORD_INTERVALS[tier] || REVEAL_CHORD_INTERVALS.common;
+    const progressSemitones = Math.round(sequenceProgress * 7);
+    const strumMs = tier === 'legendary' ? 45 : 25; // léger arpège d'attaque avant que l'accord plein sonne
+
+    intervals.forEach((semitone, i) => {
+      const freq = REVEAL_ROOT_FREQ * Math.pow(2, (semitone + progressSemitones) / 12);
+      const start = ctx.currentTime + (i * strumMs) / 1000;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
+      osc.type = i === 0 ? 'triangle' : 'sine'; // fondamentale un peu plus corsée que les harmoniques
       osc.frequency.value = freq;
-      const start = ctx.currentTime + i * 0.07;
       gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(vol * 0.25, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+      gain.gain.linearRampToValueAtTime(vol * (0.16 - i * 0.015), start + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.9);
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dry);
+      gain.connect(wet);
       osc.start(start);
-      osc.stop(start + 0.5);
+      osc.stop(start + 0.95);
     });
   } catch (_) { /* Web Audio indisponible/bloqué — jamais bloquant pour la révélation */ }
+}
+
+// Riser (montée filtrée) joué PENDANT le hold (voir REVEAL_HOLD_MS) — la
+// tension monte juste avant l'impact au lieu d'un silence total pendant que
+// l'éclat est "sur la tranche".
+function playRevealRiser(durationMs) {
+  const vol = getSharedVolume();
+  if (vol <= 0) return;
+  try {
+    const { ctx, dry } = getRevealAudioGraph();
+    const dur = Math.max(durationMs, 80) / 1000;
+    const start = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    filter.type = 'lowpass';
+    osc.frequency.setValueAtTime(180, start);
+    osc.frequency.exponentialRampToValueAtTime(680, start + dur);
+    filter.frequency.setValueAtTime(300, start);
+    filter.frequency.exponentialRampToValueAtTime(3200, start + dur);
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(vol * 0.1, start + dur * 0.7);
+    gain.gain.linearRampToValueAtTime(0, start + dur);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(dry);
+    osc.start(start);
+    osc.stop(start + dur + 0.05);
+  } catch (_) {}
+}
+
+// Sub-bass bref sous l'accord d'impact — donne du poids physique aux tiers
+// au-dessus de common (qui reste volontairement discret).
+function playImpactThump(tier) {
+  if (tier === 'common') return;
+  const vol = getSharedVolume();
+  if (vol <= 0) return;
+  try {
+    const { ctx, dry } = getRevealAudioGraph();
+    const start = ctx.currentTime;
+    const baseFreq = tier === 'legendary' ? 70 : tier === 'epic' ? 85 : tier === 'cooloss' ? 95 : 100;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq * 2, start);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq, start + 0.12);
+    gain.gain.setValueAtTime(vol * 0.35, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+    osc.connect(gain);
+    gain.connect(dry);
+    osc.start(start);
+    osc.stop(start + 0.4);
+  } catch (_) {}
 }
 
 // Flash radial + gerbe de particules colorées par tier, posés en overlay
@@ -827,11 +932,17 @@ async function revealShard(ordered, index) {
   const slot = document.getElementById('shard-back-active');
   const dot = document.getElementById(`spotlight-dot-${index}`);
   slot.classList.add('revealing', 'flipping');
+  const holdMs = REVEAL_HOLD_MS[res.tier] ?? 240;
+  // Position dans le lot en cours (0 = premier tirage, 1 = dernier) — fait
+  // monter la hauteur de l'accord de révélation sur TOUT le pack, voir
+  // playRevealChime.
+  const sequenceProgress = ordered.length > 1 ? index / (ordered.length - 1) : 0;
+  playRevealRiser(holdMs);
 
   // L'éclat est "sur la tranche" (invisible, transform CSS) pendant
   // REVEAL_HOLD_MS — le contenu réel est posé dessous à cet instant précis
   // pour que l'échange soit invisible, puis la carte se déplie dessus.
-  await new Promise((resolve) => setTimeout(resolve, REVEAL_HOLD_MS[res.tier] ?? 240));
+  await new Promise((resolve) => setTimeout(resolve, holdMs));
 
   if (res.tier === 'cooloss') {
     slot.classList.remove('revealing', 'flipping');
@@ -853,7 +964,8 @@ async function revealShard(ordered, index) {
     slot.appendChild(info);
 
     spawnRevealImpact(visual, 'cooloss');
-    playRevealChime('cooloss');
+    playRevealChime('cooloss', sequenceProgress);
+    playImpactThump('cooloss');
     if (dot) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = ''; dot.style.setProperty('--dot-glow', 'var(--tier-cooloss-bracket)'); }
 
     const countPill = document.getElementById('cooloss-shard-count');
@@ -914,7 +1026,8 @@ async function revealShard(ordered, index) {
   slot.appendChild(info);
 
   spawnRevealImpact(visual, res.tier);
-  playRevealChime(res.tier);
+  playRevealChime(res.tier, sequenceProgress);
+  playImpactThump(res.tier);
   if (dot) {
     dot.classList.remove('active');
     dot.classList.add('done');
