@@ -125,6 +125,15 @@ header {
 
 .economy-bar { display: flex; align-items: center; gap: 14px; }
 
+.meme-volume { display: flex; align-items: center; gap: 8px; }
+.meme-volume-icon { font-size: 14px; width: 18px; text-align: center; flex: none; }
+.meme-volume-slider {
+  width: 90px;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--orange);
+}
+
 .dolloss-pill {
   display: flex;
   align-items: center;

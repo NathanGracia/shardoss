@@ -7,6 +7,62 @@ let mediaMetaCache = new Map();
 let currentCollection = null;
 let activeFilter = 'all';
 const tierCursorKey = 'shardoss_tier_cursor';
+const memeVolumeKey = 'shardoss_meme_volume';
+
+function getMemeVolume() {
+  const v = parseFloat(localStorage.getItem(memeVolumeKey));
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.6;
+}
+
+// Une seule vidéo à la fois joue du son (survoler une nouvelle carte coupe
+// le fondu de la précédente) — sinon plusieurs memes qui parlent en même
+// temps en survolant vite la grille.
+let audioFadeVideo = null;
+
+function fadeVideoVolume(video, target, duration = 250) {
+  if (video._fadeRAF) cancelAnimationFrame(video._fadeRAF);
+  const start = video.volume;
+  const startTime = performance.now();
+  if (target > 0) video.muted = false;
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    video.volume = start + (target - start) * t;
+    if (t < 1) {
+      video._fadeRAF = requestAnimationFrame(step);
+    } else {
+      video._fadeRAF = null;
+      if (target === 0) video.muted = true;
+    }
+  }
+  video._fadeRAF = requestAnimationFrame(step);
+}
+
+function hoverInMemeAudio(video) {
+  if (audioFadeVideo && audioFadeVideo !== video) fadeVideoVolume(audioFadeVideo, 0);
+  audioFadeVideo = video;
+  fadeVideoVolume(video, getMemeVolume());
+}
+
+function hoverOutMemeAudio(video) {
+  if (audioFadeVideo === video) audioFadeVideo = null;
+  fadeVideoVolume(video, 0);
+}
+
+function setupMemeVolumeControl() {
+  const slider = document.getElementById('meme-volume-slider');
+  const icon = document.getElementById('meme-volume-icon');
+  if (!slider) return;
+  const volume = getMemeVolume();
+  slider.value = volume;
+  icon.textContent = volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊';
+  slider.addEventListener('input', () => {
+    const v = parseFloat(slider.value);
+    localStorage.setItem(memeVolumeKey, v);
+    icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+    // Applique en direct si une carte est en train de fondre le son.
+    if (audioFadeVideo) fadeVideoVolume(audioFadeVideo, v, 60);
+  });
+}
 
 // La grille de collection charge une vidéo autoplay par carte touchée — au
 // delà d'une trentaine de cartes, les avoir TOUTES en lecture simultanée
@@ -27,6 +83,14 @@ const videoObserver = new IntersectionObserver(
         video.play().catch(() => {});
       } else {
         video.pause();
+        // Un scroll peut faire sortir la carte de sous le curseur sans que
+        // la souris bouge — mouseleave ne se déclenche alors jamais. Sans
+        // ça, la vidéo reviendrait à l'écran encore audible au prochain
+        // scroll, sans survol réel.
+        if (video._fadeRAF) cancelAnimationFrame(video._fadeRAF);
+        video.muted = true;
+        video.volume = 0;
+        if (audioFadeVideo === video) audioFadeVideo = null;
       }
     }
   },
@@ -398,10 +462,13 @@ async function renderCard(cardData) {
   const video = document.createElement('video');
   video.dataset.src = videoUrl; // src posé par videoObserver seulement quand la carte devient visible
   video.muted = true;
+  video.volume = 0; // le fondu au survol part toujours de 0, jamais d'un pic à pleine puissance
   video.playsInline = true;
   video.preload = 'none';
   mediaEl.appendChild(video);
   videoObserver.observe(video);
+  mediaEl.addEventListener('mouseenter', () => hoverInMemeAudio(video));
+  mediaEl.addEventListener('mouseleave', () => hoverOutMemeAudio(video));
 
   // Le toast "+N" ne veut rien dire tant que la carte n'est pas
   // déverrouillée : seules les cartes unlocked comptent dans la somme des
@@ -546,6 +613,7 @@ async function pollTierNotifications() {
 
 (async function init() {
   setupFilterTabs();
+  setupMemeVolumeControl();
 
   document.getElementById('booster-modal-close').addEventListener('click', () => {
     document.getElementById('booster-modal').hidden = true;
