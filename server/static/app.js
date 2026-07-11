@@ -907,27 +907,36 @@ function animateDollossCounter(el, to) {
     return;
   }
 
-  const maxDurationMs = 700; // rapide, mais assez long pour rester lisible chiffre par chiffre
-  const frameMs = 16;
-  const step = Math.max(1, Math.round(Math.abs(to - from) / (maxDurationMs / frameMs)));
+  // tickIntervalMs cadence chaque incrément dans le temps réel (et pas juste
+  // à chaque frame ~16ms, sinon même un pas de 1 défile en un flou illisible
+  // pour un petit gain) ; maxDurationMs borne la durée totale pour les gros
+  // montants — au-delà, le pas grandit pour ne pas compter pendant 10s.
+  const tickIntervalMs = 40;
+  const maxDurationMs = 2000;
+  const maxTicks = Math.max(1, Math.round(maxDurationMs / tickIntervalMs));
+  const step = Math.max(1, Math.round(Math.abs(to - from) / maxTicks));
   const dir = to > from ? 1 : -1;
   let current = from;
+  let lastTick = performance.now();
 
   el.classList.add('counting');
-  const tick = () => {
-    current += dir * step;
-    const done = (dir > 0 && current >= to) || (dir < 0 && current <= to);
-    const shown = done ? to : current;
-    el.textContent = shown.toLocaleString('fr-FR');
-    el._dollossDisplay = shown;
-    if (done) {
-      el._dollossAnimId = null;
-      el.classList.remove('counting');
-      return;
+  const frame = (now) => {
+    if (now - lastTick >= tickIntervalMs) {
+      lastTick = now;
+      current += dir * step;
+      const done = (dir > 0 && current >= to) || (dir < 0 && current <= to);
+      const shown = done ? to : current;
+      el.textContent = shown.toLocaleString('fr-FR');
+      el._dollossDisplay = shown;
+      if (done) {
+        el._dollossAnimId = null;
+        el.classList.remove('counting');
+        return;
+      }
     }
-    el._dollossAnimId = requestAnimationFrame(tick);
+    el._dollossAnimId = requestAnimationFrame(frame);
   };
-  el._dollossAnimId = requestAnimationFrame(tick);
+  el._dollossAnimId = requestAnimationFrame(frame);
 }
 
 function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
