@@ -11,7 +11,7 @@ const memeVolumeKey = 'shardoss_meme_volume';
 
 function getMemeVolume() {
   const v = parseFloat(localStorage.getItem(memeVolumeKey));
-  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.6;
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.15;
 }
 
 // Une seule vidéo à la fois joue du son (survoler une nouvelle carte coupe
@@ -43,12 +43,17 @@ function fadeVideoVolume(video, target, duration = 250) {
 function hoverInMemeAudio(video) {
   if (audioFadeVideo && audioFadeVideo !== video) fadeVideoVolume(audioFadeVideo, 0);
   audioFadeVideo = video;
-  fadeVideoVolume(video, getMemeVolume());
+  const volume = getMemeVolume();
+  fadeVideoVolume(video, volume);
+  // La musique baisse de moitié pendant que le son du meme se fait entendre
+  // — inutile si le son des memes est lui-même coupé (rien à mettre en avant).
+  if (volume > 0) duckMusic();
 }
 
 function hoverOutMemeAudio(video) {
   if (audioFadeVideo === video) audioFadeVideo = null;
   fadeVideoVolume(video, 0);
+  restoreMusic();
 }
 
 function setupMemeVolumeControl() {
@@ -77,7 +82,21 @@ const MUSIC_TRACKS = [
 
 function getMusicVolume() {
   const v = parseFloat(localStorage.getItem(musicVolumeKey));
-  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.4;
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.15;
+}
+
+// Référence posée par setupBackgroundMusic() — lue par hoverIn/OutMemeAudio
+// pour baisser (« duck ») la musique pendant qu'un meme se fait entendre.
+let bgMusicAudio = null;
+
+function duckMusic() {
+  if (!bgMusicAudio) return;
+  fadeVideoVolume(bgMusicAudio, getMusicVolume() * 0.5);
+}
+
+function restoreMusic() {
+  if (!bgMusicAudio) return;
+  fadeVideoVolume(bgMusicAudio, getMusicVolume());
 }
 
 function setupBackgroundMusic() {
@@ -85,6 +104,7 @@ function setupBackgroundMusic() {
   const slider = document.getElementById('music-volume-slider');
   const icon = document.getElementById('music-volume-icon');
   if (!audio || !slider) return;
+  bgMusicAudio = audio;
 
   // Ordre mélangé une fois par chargement de page, puis on boucle dessus —
   // pas de tirage aléatoire à chaque morceau (sinon le même titre peut
