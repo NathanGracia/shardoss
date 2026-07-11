@@ -52,12 +52,18 @@ class BuyBoosterPayload(BaseModel):
 @router.get("/prices")
 def get_prices(claims: dict = Depends(require_account), session: Session = Depends(get_session)):
     row = session.get(PlayerCurrency, claims["uid"])
-    count = row.boosters_purchased_count if row else 0
     return {
         booster_type: {
             "label": meta["label"],
             "shards": meta["shards"],
-            "price": booster_price(booster_type, count),
+            # Compteur propre à CE type de booster — acheter un common ne
+            # fait pas monter le prix du rare ou de l'epic.
+            "price": booster_price(booster_type, getattr(row, f"boosters_purchased_{booster_type}", 0) if row else 0),
+            # Vignette du pack : un meme au hasard parmi ceux déjà classés
+            # dans la rareté correspondante (peut être null avant le tout
+            # premier recalcul quotidien — le front retombe alors sur l'icône
+            # texte "PACK").
+            "thumbnail_media_id": _random_media_in_tier(session, booster_type),
         }
         for booster_type, meta in BOOSTER_TYPES.items()
     }
@@ -77,12 +83,13 @@ def buy_booster(
 
     settle_accrual(session, account_uid)
     currency = get_or_create_currency(session, account_uid)
-    price = booster_price(booster_type, currency.boosters_purchased_count)
+    count_field = f"boosters_purchased_{booster_type}"
+    price = booster_price(booster_type, getattr(currency, count_field))
     if currency.dolloss < price:
         raise HTTPException(status_code=402, detail="solde de Dolloss insuffisant")
 
     currency.dolloss -= price
-    currency.boosters_purchased_count += 1
+    setattr(currency, count_field, getattr(currency, count_field) + 1)
     session.add(currency)
 
     tiers_drawn = random.choices(

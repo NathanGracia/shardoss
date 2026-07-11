@@ -18,7 +18,7 @@ SHARDS_REQUIRED = {"common": 3, "rare": 6, "epic": 12, "legendary": 24}
 QUALITY_MULTIPLIER_MIN = 0.8
 QUALITY_MULTIPLIER_MAX = 1.5
 
-BOOSTER_PRICE_GROWTH = 1.15  # appliqué au prix de base de CHAQUE type, sur le compteur d'achats partagé
+BOOSTER_PRICE_GROWTH = 1.15  # appliqué au prix de base de CHAQUE type, sur SON PROPRE compteur d'achats
 
 # Trois produits de booster au choix (achat, pas juste ouverture) : moins de
 # shards mais de meilleures cotes à mesure qu'on monte en gamme — le nom du

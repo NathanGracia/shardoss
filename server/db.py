@@ -53,3 +53,14 @@ def init_db() -> None:
     #         _conn.commit()
     #     except Exception:
     #         pass
+
+    # boosters_purchased_count (compteur partagé) remplacé par un compteur
+    # par type de booster — l'ancienne colonne reste en base (orpheline,
+    # inoffensive) plutôt qu'un DROP destructif.
+    with engine.connect() as _conn:
+        for _col in ("boosters_purchased_common", "boosters_purchased_rare", "boosters_purchased_epic"):
+            try:
+                _conn.execute(text(f"ALTER TABLE player_currency ADD COLUMN {_col} INTEGER DEFAULT 0"))
+                _conn.commit()
+            except Exception:
+                pass

@@ -399,42 +399,49 @@ main { padding: 0 0 40px; }
 .booster-summary { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(16, 22, 28, 0.08); }
 .booster-summary:last-child { border-bottom: none; }
 
-.modal-card--wide { width: 640px; }
-.modal-card--reveal { width: 780px; }
+.modal-card--wide { width: 760px; }
+.modal-card--reveal { width: 920px; }
 
 .booster-option {
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid rgba(16, 22, 28, 0.14);
   background: rgba(255, 255, 255, 0.7);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px 10px;
+  gap: 10px;
+  padding: 20px 14px;
   text-align: center;
 }
 .booster-option-icon {
   width: 100%;
-  height: 70px;
-  border-radius: 10px;
+  height: 104px;
+  border-radius: 12px;
   background: linear-gradient(160deg, #e7edf1, #d3dde3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   color: rgba(16, 22, 28, 0.4);
+  overflow: hidden;
+  position: relative;
 }
-.booster-option-label { font-size: 12px; }
+.booster-option-icon video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.booster-option-label { font-size: 14px; }
 .booster-option-buy {
   margin-top: auto;
   width: 100%;
-  padding: 9px;
+  padding: 11px;
   border-radius: 10px;
   background: var(--ink);
   color: #fff;
   border: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -465,8 +472,8 @@ main { padding: 0 0 40px; }
 }
 
 .booster-pack {
-  width: 150px;
-  height: 210px;
+  width: 190px;
+  height: 265px;
   border-radius: 16px;
   position: relative;
   display: inline-flex;
@@ -486,22 +493,22 @@ main { padding: 0 0 40px; }
 }
 .booster-pack-logo {
   position: absolute;
-  top: 14px;
+  top: 18px;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--ink);
 }
 .booster-pack-tap {
   position: absolute;
-  bottom: 14px;
+  bottom: 18px;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   color: rgba(16, 22, 28, 0.5);
 }
@@ -509,42 +516,48 @@ main { padding: 0 0 40px; }
 .shard-reveal-row {
   display: flex;
   justify-content: center;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
-  padding: 12px 0;
+  padding: 16px 0;
 }
 
 .shard-back {
-  width: 170px;
+  width: 210px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   position: relative;
 }
 
-/* Le halo vit sur le conteneur EXTÉRIEUR, pas sur .shard-back-inner : ce
-   dernier a overflow:hidden (nécessaire pour rogner la vidéo à la bonne
-   fenêtre, voir plus bas) qui couperait un halo posé dessus. Pas de couleur
-   sur l'éclat lui-même — seule la lueur autour porte la couleur de rareté. */
-.shard-back::before {
-  content: '';
+/* .shard-visual encadre l'éclat ET sa lueur dans le même repère — la lueur
+   n'est plus un cercle générique posé derrière tout le composant, c'est un
+   calque qui reçoit EXACTEMENT le même clip-path (polygone) que l'éclat
+   lui-même, agrandi et flouté : le halo épouse donc le vrai contour de la
+   silhouette au lieu d'ignorer sa forme. */
+.shard-visual {
+  position: relative;
+  width: 190px;
+  height: 165px;
+}
+
+.shard-glow {
   position: absolute;
-  inset: -26px;
-  bottom: 46px;
+  inset: 0;
   z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--glow) 0%, transparent 68%);
-  filter: blur(7px);
+  transform: scale(1.4);
+  transform-origin: center;
+  filter: blur(18px);
+  background: var(--glow);
   animation: shard-glow-breathe 2.2s ease-in-out infinite;
 }
-.shard-back.legendary::before {
+.shard-back.legendary .shard-glow {
   background: conic-gradient(from 0deg, var(--orange), var(--teal), var(--orange), var(--teal), var(--orange));
   animation: shard-glow-spin-breathe 3.2s linear infinite;
 }
-.shard-back.revealing::before { animation: none; opacity: 0.3; }
-.shard-back.revealed::before { animation: none; opacity: 0.55; }
-.shard-back.assembled::before { display: none; }
+.shard-back.revealing .shard-glow { animation: none; opacity: 0.3; }
+.shard-back.revealed .shard-glow { animation: none; opacity: 0.6; }
+.shard-back.assembled .shard-glow { display: none; }
 
 /* Silhouette d'éclat de verre — un vrai polygone irrégulier, pas un
    rectangle arrondi — partagée par l'état "dos" (mystère) et l'état
@@ -555,9 +568,8 @@ main { padding: 0 0 40px; }
    coin de la boîte au lieu de la remplir entièrement). */
 .shard-back-inner,
 .shard-back-media {
-  width: 150px;
-  height: 130px;
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   transition: width 0.6s cubic-bezier(.2,.8,.2,1), height 0.6s cubic-bezier(.2,.8,.2,1);
 }
@@ -566,14 +578,12 @@ main { padding: 0 0 40px; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 24px;
   color: rgba(16, 22, 28, 0.35);
   cursor: pointer;
-  /* Pas de teinte de rareté sur l'éclat lui-même (seule la lueur autour en
-     porte la couleur) — mais un verre dépoli neutre plutôt que du blanc
-     quasi invisible sur le fond blanc de la modale, sinon la silhouette ne
-     se lit plus du tout. */
-  background: rgba(255, 255, 255, 0.72);
+  /* Dos de l'éclat totalement opaque — aucune transparence, sinon le fond
+     de la modale se voit à travers la silhouette "mystère". */
+  background: #f3f0ea;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.95), inset 0 -12px 20px -8px rgba(16, 22, 28, 0.08);
 }
 .shard-back.revealing .shard-back-inner { cursor: default; }
@@ -588,9 +598,11 @@ main { padding: 0 0 40px; }
    d'une vraie carte de la grille et redevient la vidéo complète + le
    puzzle réel de la carte, plutôt que le gros plan recadré sur ce seul
    éclat. */
+.shard-back.assembled .shard-visual {
+  width: 190px;
+  height: 128px;
+}
 .shard-back.assembled .shard-back-media {
-  width: 150px;
-  height: 100px;
   clip-path: none !important;
   border-radius: 12px;
 }

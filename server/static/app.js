@@ -85,10 +85,10 @@ async function renderBoosterSelection() {
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
         ${Object.entries(prices).map(([type, info]) => `
           <div class="booster-option">
-            <div class="booster-option-icon hf-mono">PACK</div>
+            <div class="booster-option-icon hf-mono" data-type="${type}"><span>PACK</span></div>
             <div class="booster-option-label tier-badge ${type} hf-cond">${info.label}</div>
-            <div class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">${info.shards} shards</div>
-            <div class="hf-mono" style="font-size:15px;font-weight:500;color:var(--ink)">${Math.ceil(info.price)} <span style="font-size:10px;color:rgba(16,22,28,.4)">DOLLOSS</span></div>
+            <div class="hf-mono" style="font-size:12px;color:rgba(16,22,28,.5)">${info.shards} shards</div>
+            <div class="hf-mono" style="font-size:17px;font-weight:500;color:var(--ink)">${Math.ceil(info.price)} <span style="font-size:11px;color:rgba(16,22,28,.4)">DOLLOSS</span></div>
             <button class="booster-option-buy hf-cond" data-type="${type}">ACHETER</button>
           </div>
         `).join('')}
@@ -96,6 +96,24 @@ async function renderBoosterSelection() {
     `;
     body.querySelectorAll('.booster-option-buy').forEach((btn) => {
       btn.addEventListener('click', () => buyAndRevealBooster(btn.dataset.type));
+    });
+
+    // Vignette du pack : un meme au hasard de la rareté correspondante,
+    // chargé après coup (pas bloquant pour l'affichage des prix/boutons).
+    Object.entries(prices).forEach(async ([type, info]) => {
+      if (!info.thumbnail_media_id) return;
+      const meta = await fetchMediaMeta(info.thumbnail_media_id);
+      if (!meta) return;
+      const icon = body.querySelector(`.booster-option-icon[data-type="${type}"]`);
+      if (!icon) return;
+      const video = document.createElement('video');
+      video.src = `${MEMOSS_ORIGIN}${meta.url}`;
+      video.muted = true;
+      video.autoplay = true;
+      video.loop = true;
+      video.playsInline = true;
+      icon.innerHTML = '';
+      icon.appendChild(video);
     });
   } catch (_) {
     body.innerHTML = `<div style="text-align:center;padding:24px 0;color:rgba(16,22,28,.6)">Impossible de charger les boosters.</div>`;
@@ -206,9 +224,15 @@ function renderShardBacks(results) {
       if (res.newly_revealed_points) {
         clipStyle = ` style="clip-path:${normalizedClipPath(res.newly_revealed_points, pieceBBox(res.newly_revealed_points))}"`;
       }
+      // .shard-glow porte le MÊME clip-path que l'éclat : agrandi + flouté,
+      // ça donne une lueur qui épouse le contour réel de l'éclat plutôt
+      // qu'un cercle générique posé derrière.
       return `
         <div class="shard-back${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-${i}" style="--glow: var(--tier-${res.tier}-bracket)">
-          <div class="shard-back-inner hf-mono"${clipStyle}>?</div>
+          <div class="shard-visual">
+            <div class="shard-glow"${clipStyle}></div>
+            <div class="shard-back-inner hf-mono"${clipStyle}>?</div>
+          </div>
         </div>
       `;
     }).join('')}
@@ -253,13 +277,22 @@ async function revealShard(index, res) {
     mediaWrap.style.background = TIER_REVEAL_BG[res.tier] || TIER_REVEAL_BG.common;
   }
 
-  slot.innerHTML = '';
-  slot.appendChild(mediaWrap);
+  // On ne vide QUE .shard-visual (dos mystère → média révélé) : la lueur
+  // vit dans ce même conteneur et garde exactement le même clip-path
+  // (l'éclat ne change pas de silhouette entre mystère et révélé).
+  const visual = slot.querySelector('.shard-visual');
+  visual.innerHTML = '';
+  const glow = document.createElement('div');
+  glow.className = 'shard-glow';
+  if (bbox) glow.style.clipPath = normalizedClipPath(res.newly_revealed_points, bbox);
+  visual.appendChild(glow);
+  visual.appendChild(mediaWrap);
+
   const info = document.createElement('div');
   info.className = 'shard-back-info';
   info.innerHTML = `
     <span class="tier-badge ${res.tier} hf-cond">${TIER_LABELS[res.tier] || res.tier}</span>
-    <span class="hf-mono" style="font-size:11px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
+    <span class="hf-mono" style="font-size:12px;color:rgba(16,22,28,.5)">${res.overflow_to_dolloss ? `+${res.overflow_to_dolloss} Dolloss (doublon)` : `+${res.shard_applied} shard`}</span>
   `;
   slot.appendChild(info);
 

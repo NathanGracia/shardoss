@@ -40,7 +40,11 @@ class PlayerCurrency(SQLModel, table=True):
     __tablename__ = "player_currency"
     account_uid: int = Field(primary_key=True)
     dolloss: float = Field(default=0.0)
-    boosters_purchased_count: int = Field(default=0)
+    # Un compteur par type de booster (pas un compteur partagé) : le prix
+    # d'un pack ne doit monter que pour CE pack acheté, pas pour les 3.
+    boosters_purchased_common: int = Field(default=0)
+    boosters_purchased_rare: int = Field(default=0)
+    boosters_purchased_epic: int = Field(default=0)
     last_accrual_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
 
 
