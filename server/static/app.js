@@ -67,6 +67,72 @@ function setupMemeVolumeControl() {
   });
 }
 
+// ── Musique de fond ────────────────────────────────────────────────────────
+const musicVolumeKey = 'shardoss_music_volume';
+const MUSIC_TRACKS = [
+  'music/alps-journey.mp3',
+  'music/hanging-on-the-mont-blanc.mp3',
+  'music/into-the-steep.mp3',
+];
+
+function getMusicVolume() {
+  const v = parseFloat(localStorage.getItem(musicVolumeKey));
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.4;
+}
+
+function setupBackgroundMusic() {
+  const audio = document.getElementById('bg-music');
+  const slider = document.getElementById('music-volume-slider');
+  const icon = document.getElementById('music-volume-icon');
+  if (!audio || !slider) return;
+
+  // Ordre mélangé une fois par chargement de page, puis on boucle dessus —
+  // pas de tirage aléatoire à chaque morceau (sinon le même titre peut
+  // repasser juste après avoir été entendu).
+  const order = [...MUSIC_TRACKS.keys()];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  let pos = 0;
+
+  function playAt(p) {
+    audio.src = MUSIC_TRACKS[order[p]];
+    audio.play().catch(() => {});
+  }
+
+  audio.addEventListener('ended', () => {
+    pos = (pos + 1) % order.length;
+    playAt(pos);
+  });
+
+  const volume = getMusicVolume();
+  audio.volume = volume;
+  slider.value = volume;
+  icon.textContent = volume === 0 ? '🔇' : '🎵';
+
+  if (volume > 0) playAt(pos);
+
+  // L'autoplay avec son est généralement bloqué tant que la page n'a reçu
+  // aucun geste utilisateur — filet de secours, on retente au premier clic.
+  document.addEventListener('pointerdown', () => {
+    if (audio.paused && getMusicVolume() > 0) audio.play().catch(() => {});
+  }, { once: true });
+
+  slider.addEventListener('input', () => {
+    const v = parseFloat(slider.value);
+    localStorage.setItem(musicVolumeKey, v);
+    audio.volume = v;
+    icon.textContent = v === 0 ? '🔇' : '🎵';
+    if (v === 0) {
+      audio.pause();
+    } else if (audio.paused) {
+      if (!audio.src) playAt(pos);
+      else audio.play().catch(() => {});
+    }
+  });
+}
+
 // La grille de collection charge une vidéo autoplay par carte touchée — au
 // delà d'une trentaine de cartes, les avoir TOUTES en lecture simultanée
 // fait chuter les perfs (décodage vidéo concurrent, pas juste du DOM).
@@ -617,6 +683,7 @@ async function pollTierNotifications() {
 (async function init() {
   setupFilterTabs();
   setupMemeVolumeControl();
+  setupBackgroundMusic();
 
   document.getElementById('booster-modal-close').addEventListener('click', () => {
     document.getElementById('booster-modal').hidden = true;
