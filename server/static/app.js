@@ -193,9 +193,11 @@ const videoObserver = new IntersectionObserver(
     for (const entry of entries) {
       const video = entry.target;
       if (entry.isIntersecting) {
+        video._shouldPlay = true;
         if (!video.src && video.dataset.src) video.src = video.dataset.src;
         video.play().catch(() => {});
       } else {
+        video._shouldPlay = false;
         video.pause();
         // Un scroll peut faire sortir la carte de sous le curseur sans que
         // la souris bouge — mouseleave ne se déclenche alors jamais. Sans
@@ -210,6 +212,24 @@ const videoObserver = new IntersectionObserver(
   },
   { rootMargin: '400px 0px' }
 );
+
+// Le navigateur peut mettre une vidéo en pause EN INTERNE (jamais via
+// video.pause() en JS, donc invisible pour tout code qui l'attendrait) —
+// notamment quand hoverInMemeAudio() démute une vidéo qui autoplayait
+// muette, sans geste utilisateur jugé suffisant. Sans filet, la vidéo reste
+// figée indéfiniment sur sa dernière frame (vérifié en traçant les events
+// 'pause' réels : ça arrive alors que .pause() n'est jamais appelé).
+// video._shouldPlay (posé par videoObserver) distingue cette pause
+// inattendue d'une pause légitime (carte sortie du viewport, fin de vidéo).
+function attachPauseRetry(video) {
+  video.addEventListener('pause', () => {
+    if (video.ended || !video._shouldPlay) return;
+    video.play().catch(() => {
+      video.muted = true;
+      video.play().catch(() => {});
+    });
+  });
+}
 
 async function fetchMediaMeta(mediaId) {
   if (mediaMetaCache.has(mediaId)) return mediaMetaCache.get(mediaId);
@@ -685,12 +705,14 @@ async function renderCard(cardData) {
 
   const video = document.createElement('video');
   video.dataset.src = videoUrl; // src posé par videoObserver seulement quand la carte devient visible
+  video._shouldPlay = true; // valeur par défaut avant le premier passage de videoObserver
   video.muted = true;
   video.volume = 0; // le fondu au survol part toujours de 0, jamais d'un pic à pleine puissance
   video.playsInline = true;
   video.preload = 'none';
   mediaEl.appendChild(video);
   videoObserver.observe(video);
+  attachPauseRetry(video);
   mediaEl.addEventListener('mouseenter', () => hoverInMemeAudio(video));
   mediaEl.addEventListener('mouseleave', () => hoverOutMemeAudio(video));
 
