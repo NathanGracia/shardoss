@@ -764,23 +764,40 @@ async function renderGrid() {
   // éléments hors DOM s'accumuler dedans.
   grid.querySelectorAll('video').forEach((v) => videoObserver.unobserve(v));
 
-  const cards = activeFilter === 'all'
+  const cardsRaw = activeFilter === 'all'
     ? currentCollection.cards
     : currentCollection.cards.filter((c) => c.tier === activeFilter);
 
-  if (!cards.length) {
+  if (!cardsRaw.length) {
     grid.innerHTML = `<div class="empty-state">${
       currentCollection.cards.length ? 'Aucune carte dans ce tier.' : 'Joue une partie de Memoss pour commencer ta collection.'
     }</div>`;
     return;
   }
+
+  // Terminées d'abord, en cours ensuite — ordre d'obtention d'origine
+  // conservé (stable) à l'intérieur de chacun des deux groupes.
+  const unlocked = cardsRaw.filter((c) => c.unlocked);
+  const locked = cardsRaw.filter((c) => !c.unlocked);
+  const cards = [...unlocked, ...locked];
+
   // Chaque renderCard() fait plusieurs fetch async (meta média, fragments) —
   // les résoudre en parallèle mais les insérer dans l'ordre d'origine du
   // tableau, sinon l'ordre d'arrivée réseau détermine l'ordre à l'écran et
   // les cartes semblent se réarranger à chaque rechargement.
   const elements = await Promise.all(cards.map((cardData) => renderCard(cardData)));
   grid.innerHTML = '';
-  elements.forEach((el) => grid.appendChild(el));
+  elements.forEach((el, i) => {
+    // Simple retour à la ligne entre les deux groupes — seulement s'il y a
+    // bien les deux (rien à séparer si tout est terminé ou tout en cours).
+    if (i === unlocked.length && unlocked.length > 0 && locked.length > 0) {
+      const sep = document.createElement('div');
+      sep.className = 'grid-section-break hf-mono';
+      sep.textContent = 'EN COURS';
+      grid.appendChild(sep);
+    }
+    grid.appendChild(el);
+  });
 }
 
 function setupFilterTabs() {

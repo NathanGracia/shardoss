@@ -241,6 +241,26 @@ main { padding: 0 0 40px; }
 @media (max-width: 1100px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .card-grid { grid-template-columns: 1fr; } }
 
+/* Simple retour à la ligne entre cartes terminées et cartes en cours —
+   volontairement léger (une ligne + un label discret), pas un bandeau. */
+.grid-section-break {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(16, 22, 28, 0.4);
+}
+.grid-section-break::before,
+.grid-section-break::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(16, 22, 28, 0.12);
+}
+
 .meme-card {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
