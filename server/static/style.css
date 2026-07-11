@@ -503,7 +503,12 @@ main { padding: 0 0 40px; }
 .booster-summary:last-child { border-bottom: none; }
 
 .modal-card--wide { width: 760px; }
-.modal-card--reveal { width: 920px; }
+/* Le flux booster (sélection → pack → reveal spotlight) reste sur cette
+   même largeur du début à la fin — la modale changeait sinon visiblement
+   de taille en passant d'une étape à l'autre. Même logique de stabilité
+   pour la hauteur : min-height fixe sur #booster-modal-body plutôt que de
+   laisser le contenu de chaque étape dicter une hauteur différente. */
+#booster-modal-body { min-height: 420px; justify-content: center; }
 
 .booster-option {
   border-radius: 18px;
@@ -622,24 +627,6 @@ main { padding: 0 0 40px; }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.03); }
 }
-/* Le halo n'anime JAMAIS box-shadow directement (le flou/spread ne sont pas
-   accélérés matériellement, ça saccadait à l'usage) — un pseudo-élément
-   séparé porte le halo (radial-gradient + filter:blur, posé une fois) et
-   c'est lui qu'on anime, uniquement en opacity/transform, les deux seules
-   propriétés fluides sur toutes les machines. */
-@keyframes shard-glow-breathe {
-  0%, 100% { opacity: 0.4; transform: scale(0.9); }
-  50% { opacity: 0.8; transform: scale(1.1); }
-}
-/* Legendary : même souffle, + rotation continue + halo multicolore (conic-
-   gradient orange/teal) plutôt qu'une seule teinte — demande explicite,
-   la carte la plus rare doit visuellement se distinguer des 3 autres. */
-@keyframes shard-glow-spin-breathe {
-  0%   { transform: rotate(0deg)   scale(0.9); opacity: 0.45; }
-  50%  { transform: rotate(180deg) scale(1.12); opacity: 0.85; }
-  100% { transform: rotate(360deg) scale(0.9); opacity: 0.45; }
-}
-
 .booster-pack {
   width: 190px;
   height: 265px;
@@ -742,7 +729,6 @@ main { padding: 0 0 40px; }
    backface-visibility — cohérent avec la contrainte "opacity/transform
    seulement" déjà suivie ailleurs dans ce fichier pour rester fluide. */
 .shard-back.spotlight-active { width: 280px; }
-.shard-back.spotlight-active.assembled { width: 210px; }
 .shard-back.spotlight-active .shard-visual {
   width: 260px;
   height: 220px;
@@ -792,34 +778,43 @@ main { padding: 0 0 40px; }
   position: relative;
 }
 
-/* .shard-visual encadre l'éclat ET sa lueur dans le même repère — la lueur
-   n'est plus un cercle générique posé derrière tout le composant, c'est un
-   calque qui reçoit EXACTEMENT le même clip-path (polygone) que l'éclat
-   lui-même, agrandi et flouté : le halo épouse donc le vrai contour de la
-   silhouette au lieu d'ignorer sa forme. */
 .shard-visual {
   position: relative;
   width: 190px;
   height: 165px;
 }
 
-.shard-glow {
+/* Particules ambiantes autour de l'éclat (remplace l'ancien halo flouté) —
+   un nuage de points qui dérivent et pulsent doucement, pas un anneau de
+   lueur qui épouse la silhouette. Chaque point a son propre angle/rayon/
+   durée posés en inline (--px/--py/--dur/--delay) pour un mouvement
+   organique sans boucle JS (voir renderAmbientParticles). */
+.shard-ambient {
   position: absolute;
-  inset: 0;
-  z-index: -1;
-  transform: scale(1.4);
-  transform-origin: center;
-  filter: blur(18px);
-  background: var(--glow);
-  animation: shard-glow-breathe 2.2s ease-in-out infinite;
+  inset: -30px;
+  pointer-events: none;
 }
-.shard-back.legendary .shard-glow {
-  background: conic-gradient(from 0deg, var(--orange), var(--teal), var(--orange), var(--teal), var(--orange));
-  animation: shard-glow-spin-breathe 3.2s linear infinite;
+.shard-ambient-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--particle-color, #fff);
+  opacity: 0;
+  transform: translate(-50%, -50%) translate(var(--px), var(--py)) scale(0.6);
+  animation: shard-ambient-float var(--dur, 2.4s) ease-in-out var(--delay, 0s) infinite;
 }
-.shard-back.revealing .shard-glow { animation: none; opacity: 0.3; }
-.shard-back.revealed .shard-glow { animation: none; opacity: 0.6; }
-.shard-back.assembled .shard-glow { display: none; }
+@keyframes shard-ambient-float {
+  0%, 100% { opacity: 0; transform: translate(-50%, -50%) translate(var(--px), var(--py)) scale(0.6); }
+  50% { opacity: 0.9; transform: translate(-50%, -50%) translate(calc(var(--px) * 1.15), calc(var(--py) * 1.15)) scale(1); }
+}
+/* Legendary : particules plus nombreuses et plus vives (voir
+   renderAmbientParticles) — la carte la plus rare doit se distinguer
+   visuellement des 3 autres, même remarque que l'ancien halo qu'elles
+   remplacent. */
+.shard-back.legendary .shard-ambient-dot { animation-duration: 1.5s; }
 
 /* Silhouette d'éclat de verre — un vrai polygone irrégulier, pas un
    rectangle arrondi — partagée par l'état "dos" (mystère) et l'état
@@ -856,14 +851,10 @@ main { padding: 0 0 40px; }
   object-fit: cover;
 }
 
-/* Phase "assemblée" (2s après la révélation) : l'éclat rétrécit à la taille
-   d'une vraie carte de la grille et redevient la vidéo complète + le
-   puzzle réel de la carte, plutôt que le gros plan recadré sur ce seul
-   éclat. */
-.shard-back.assembled .shard-visual {
-  width: 190px;
-  height: 128px;
-}
+/* Phase "assemblée" (2s après la révélation) : l'éclat redevient la vidéo
+   complète + le puzzle réel de la carte à la place du gros plan recadré sur
+   ce seul éclat — SANS changer de taille (voir .shard-back.spotlight-active
+   .shard-visual), pour que rien ne saute visuellement à cet instant. */
 .shard-back.assembled .shard-back-media {
   clip-path: none !important;
   border-radius: 12px;

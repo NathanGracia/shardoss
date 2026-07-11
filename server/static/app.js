@@ -700,14 +700,18 @@ function playRevealChime(tier) {
 }
 
 // Flash radial + gerbe de particules colorées par tier, posés en overlay
-// dans .spotlight-stage au moment de l'impact — nettoyés d'eux-mêmes après
-// leur transition (pas de nœuds qui traînent entre deux ouvertures).
-function spawnRevealImpact(stage, tier) {
+// DANS .shard-visual (pas .spotlight-stage, bien plus large que l'éclat
+// lui-même) — un inset négatif calculé contre la largeur pleine du stage
+// créait un débordement horizontal du modal-body pendant les ~550ms de vie
+// du flash (scrollbar qui apparaît puis disparaît, très inélégant).
+// Nettoyés d'eux-mêmes après leur transition (pas de nœuds qui traînent
+// entre deux ouvertures).
+function spawnRevealImpact(visual, tier) {
   const color = `var(--tier-${tier}-bracket)`;
   const flash = document.createElement('div');
   flash.className = 'spotlight-flash';
   flash.style.setProperty('--flash-color', color);
-  stage.appendChild(flash);
+  visual.appendChild(flash);
   requestAnimationFrame(() => flash.classList.add('pulse'));
   setTimeout(() => flash.remove(), 550);
 
@@ -720,10 +724,34 @@ function spawnRevealImpact(stage, tier) {
     const dist = 70 + Math.random() * 90;
     p.style.setProperty('--px', `${Math.cos(angle) * dist}px`);
     p.style.setProperty('--py', `${Math.sin(angle) * dist}px`);
-    stage.appendChild(p);
+    visual.appendChild(p);
     requestAnimationFrame(() => p.classList.add('burst'));
     setTimeout(() => p.remove(), 750);
   }
+}
+
+// Nuage de particules ambiantes qui dérivent en boucle autour de l'éclat
+// (remplace l'ancien halo flouté qui épousait son contour) — posées dans
+// .shard-visual, en dehors de la zone clippée par le polygone, donc
+// visibles TOUT AUTOUR de la silhouette plutôt que dessus.
+function renderAmbientParticles(visual, tier) {
+  const color = `var(--tier-${tier}-bracket)`;
+  const count = tier === 'legendary' ? 10 : (tier === 'epic' || tier === 'cooloss') ? 8 : 6;
+  const ambient = document.createElement('div');
+  ambient.className = 'shard-ambient';
+  for (let i = 0; i < count; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'shard-ambient-dot';
+    dot.style.setProperty('--particle-color', color);
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const radius = 90 + Math.random() * 50;
+    dot.style.setProperty('--px', `${Math.cos(angle) * radius}px`);
+    dot.style.setProperty('--py', `${Math.sin(angle) * radius}px`);
+    dot.style.setProperty('--dur', `${1.8 + Math.random() * 1.4}s`);
+    dot.style.setProperty('--delay', `${Math.random() * 2}s`);
+    ambient.appendChild(dot);
+  }
+  visual.appendChild(ambient);
 }
 
 function renderShardBacks(results) {
@@ -731,7 +759,7 @@ function renderShardBacks(results) {
   // révélé en dernier, quel que soit l'ordre réel renvoyé par le serveur.
   const ordered = [...results].sort((a, b) => (RARITY_ORDER[a.tier] ?? 0) - (RARITY_ORDER[b.tier] ?? 0));
 
-  document.getElementById('booster-modal-card').className = 'modal-card modal-card--reveal modal-card--spotlight';
+  document.getElementById('booster-modal-card').className = 'modal-card modal-card--wide modal-card--spotlight';
   const subtitle = document.getElementById('booster-modal-subtitle');
   const body = document.getElementById('booster-modal-body');
   document.getElementById('booster-modal-ok').textContent = 'TERMINER';
@@ -772,13 +800,13 @@ function renderSpotlightSlot(ordered, index) {
   }
 
   stage.innerHTML = `
-    <div class="shard-back spotlight-active${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-active" style="--glow: var(--tier-${res.tier}-bracket)">
+    <div class="shard-back spotlight-active${res.tier === 'legendary' ? ' legendary' : ''}" id="shard-back-active">
       <div class="shard-visual">
-        <div class="shard-glow"${clipStyle}></div>
         <div class="shard-back-inner hf-mono"${clipStyle}>?</div>
       </div>
     </div>
   `;
+  renderAmbientParticles(document.querySelector('#shard-back-active .shard-visual'), res.tier);
   document.getElementById('shard-back-active').addEventListener(
     'click',
     () => revealShard(ordered, index),
@@ -789,7 +817,6 @@ function renderSpotlightSlot(ordered, index) {
 async function revealShard(ordered, index) {
   const res = ordered[index];
   const slot = document.getElementById('shard-back-active');
-  const stage = document.getElementById('spotlight-stage');
   const dot = document.getElementById(`spotlight-dot-${index}`);
   slot.classList.add('revealing', 'flipping');
 
@@ -807,6 +834,7 @@ async function revealShard(ordered, index) {
     mediaWrap.className = 'shard-back-media cooloss-shard-reveal';
     mediaWrap.innerHTML = '<img src="cooloss-shard.png" alt="">';
     visual.appendChild(mediaWrap);
+    renderAmbientParticles(visual, 'cooloss');
 
     const info = document.createElement('div');
     info.className = 'shard-back-info';
@@ -816,7 +844,7 @@ async function revealShard(ordered, index) {
     `;
     slot.appendChild(info);
 
-    spawnRevealImpact(stage, 'cooloss');
+    spawnRevealImpact(visual, 'cooloss');
     playRevealChime('cooloss');
     if (dot) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = ''; dot.style.setProperty('--dot-glow', 'var(--tier-cooloss-bracket)'); }
 
@@ -859,16 +887,15 @@ async function revealShard(ordered, index) {
     mediaWrap.style.background = TIER_REVEAL_BG[res.tier] || TIER_REVEAL_BG.common;
   }
 
-  // On ne vide QUE .shard-visual (dos mystère → média révélé) : la lueur
-  // vit dans ce même conteneur et garde exactement le même clip-path
-  // (l'éclat ne change pas de silhouette entre mystère et révélé).
+  // On ne vide QUE .shard-visual (dos mystère → média révélé) : les
+  // particules ambiantes sont recréées dans ce même conteneur, pas
+  // conservées de l'état mystère (couleur différente possible si le tier
+  // affiché avant/après clic venait à différer — jamais le cas ici, mais
+  // plus simple à raisonner que de les faire survivre au clear).
   const visual = slot.querySelector('.shard-visual');
   visual.innerHTML = '';
-  const glow = document.createElement('div');
-  glow.className = 'shard-glow';
-  if (bbox) glow.style.clipPath = normalizedClipPath(res.newly_revealed_points, bbox);
-  visual.appendChild(glow);
   visual.appendChild(mediaWrap);
+  renderAmbientParticles(visual, res.tier);
 
   const info = document.createElement('div');
   info.className = 'shard-back-info';
@@ -878,7 +905,7 @@ async function revealShard(ordered, index) {
   `;
   slot.appendChild(info);
 
-  spawnRevealImpact(stage, res.tier);
+  spawnRevealImpact(visual, res.tier);
   playRevealChime(res.tier);
   if (dot) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = ''; dot.style.setProperty('--dot-glow', `var(--tier-${res.tier}-bracket)`); }
 
