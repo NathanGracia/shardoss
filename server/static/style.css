@@ -373,6 +373,13 @@ main { padding: 0 0 40px; }
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   padding: 10px 14px;
+  /* Sans ça, un ancêtre flex avec align-items:center (le .shard-back du
+     reveal spotlight — voir assembleCard) fait "rétrécir à l'essentiel"
+     cette bande au lieu de la laisser occuper toute la largeur de la carte,
+     ce qui écrase les 3 colonnes les unes sur les autres (DOLLOSS/S qui
+     chevauche le badge de tier). Dans la grille normale (.meme-card, pas
+     flex) c'était déjà 100% de fait — ce width est donc un no-op là-bas. */
+  width: 100%;
 }
 .meme-card-band .pps { justify-self: start; }
 .meme-card-band .tier-badge { justify-self: center; }
