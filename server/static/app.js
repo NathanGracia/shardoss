@@ -422,6 +422,7 @@ function renderEconomyBar(state) {
       <span class="dolloss-dot"></span>
       <span class="dolloss-value hf-mono" id="dolloss-value">${Math.floor(state.dolloss).toLocaleString('fr-FR')}</span>
       <span class="dolloss-label hf-cond">DOLLOSS</span>
+      <span class="dolloss-rate hf-mono">+${(state.points_per_sec_total || 0).toFixed(1)}/S</span>
     </div>
     <div class="dolloss-pill cooloss-shard-pill" id="cooloss-shard-pill" title="Joker : permet de déverrouiller une shard sur n'importe quelle carte">
       <img class="cooloss-shard-icon-small" src="cooloss-shard.png" alt="">
