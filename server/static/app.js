@@ -677,14 +677,14 @@ function renderPackTap(results) {
 
 // Gradients "possédé" par tier, repris du mockup (TIER_META.ownedBg) — le
 // legendary n'y était pas (aucun des 3 exemples du mockup n'était
-// legendary), extrapolé en mélange orange/cyan pour rester cohérent avec
-// le badge dual-tone du tier. Utilisé seulement en repli si aucune vidéo
-// n'a pu être chargée pour l'éclat.
+// legendary), reconstruit en or (voir --gold/--gold-light) pour rester
+// cohérent avec son identité propre. Utilisé seulement en repli si aucune
+// vidéo n'a pu être chargée pour l'éclat.
 const TIER_REVEAL_BG = {
   common: 'linear-gradient(160deg,#eef1f3,#dbe1e5)',
   rare: 'linear-gradient(160deg,#cdeaf2,#a9d9e6)',
   epic: 'linear-gradient(160deg,#ffd8c2,#ffb083)',
-  legendary: 'linear-gradient(160deg,#ffe1c2,#c9ecf5)',
+  legendary: 'linear-gradient(160deg,#f3d17a,#c9971f)',
 };
 
 // Silhouette fixe pour le joker (shard cooloss) : pas de media_id associé,
@@ -883,13 +883,11 @@ function playImpactThump(tier) {
 // du flash (scrollbar qui apparaît puis disparaît, très inélégant).
 // Nettoyés d'eux-mêmes après leur transition (pas de nœuds qui traînent
 // entre deux ouvertures).
-// --tier-epic-bracket et --tier-legendary-bracket sont la MÊME couleur
-// (voir :root, le badge les distingue par le texte/la bordure, pas la
-// teinte) — un point de particule n'a que sa couleur pour se distinguer,
-// donc legendary alterne orange/teal (rappel du dégradé du badge
-// --tier-legendary-bg) plutôt que de se confondre visuellement avec epic.
+// Legendary alterne deux nuances d'or (voir --gold/--gold-light) pour un
+// effet scintillant plutôt qu'une couleur plate — sa propre identité, pas
+// empruntée à un autre tier.
 function tierParticleColor(tier, i) {
-  if (tier === 'legendary') return i % 2 === 0 ? 'var(--orange)' : 'var(--teal)';
+  if (tier === 'legendary') return i % 2 === 0 ? 'var(--gold)' : 'var(--gold-light)';
   return `var(--tier-${tier}-bracket)`;
 }
 
@@ -1107,11 +1105,10 @@ async function revealShard(ordered, index) {
     dot.classList.remove('active');
     dot.classList.add('done');
     dot.textContent = '';
-    // legendary partage sa couleur de "bracket" avec epic (voir :root) — le
-    // dégradé dual-tone du badge est repris ici pour que la pastille reste
-    // distinguable au premier coup d'œil, même remarque que tierParticleColor.
+    // Même dégradé or que --tier-legendary-bg pour la pastille de legendary
+    // (voir tierParticleColor) — cohérent avec le reste de son identité.
     dot.style.setProperty('--dot-glow', res.tier === 'legendary'
-      ? 'linear-gradient(90deg, var(--orange), var(--teal))'
+      ? 'linear-gradient(90deg, var(--gold), var(--gold-light))'
       : `var(--tier-${res.tier}-bracket)`);
   }
 

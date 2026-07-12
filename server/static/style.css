@@ -12,6 +12,11 @@
   --orange: #ff5a1f;
   --teal: #3fb6d3;
   --teal-dark: #0e6a80;
+  /* Or du legendary — remplace l'ancien duo orange/teal (identique à
+     epic en pratique, jamais aimé) par une teinte à lui, pas empruntée à
+     un autre tier. */
+  --gold: #c9971f;
+  --gold-light: #f3d17a;
 
   --tier-common-bracket: rgba(16, 22, 28, 0.3);
   --tier-common-text: rgba(16, 22, 28, 0.55);
@@ -28,10 +33,10 @@
   --tier-epic-border: rgba(255, 90, 31, 0.45);
   --tier-epic-bg: rgba(255, 90, 31, 0.08);
 
-  --tier-legendary-bracket: #ff5a1f;
-  --tier-legendary-text: #10161c;
-  --tier-legendary-border: #10161c;
-  --tier-legendary-bg: linear-gradient(90deg, rgba(255, 90, 31, 0.15), rgba(63, 182, 211, 0.15));
+  --tier-legendary-bracket: #c9971f;
+  --tier-legendary-text: #8a6710;
+  --tier-legendary-border: #c9971f;
+  --tier-legendary-bg: linear-gradient(90deg, rgba(201, 151, 31, 0.18), rgba(243, 209, 122, 0.22));
 
   /* Joker (shard cooloss) : violet emprunté à l'identité visuelle de
      cooloss lui-même (badge "Habitué"), pour marquer que c'est un objet
@@ -335,11 +340,14 @@ main { padding: 0 0 40px; }
    légende), aucun de ces éléments n'ayant son propre fond opaque. Inspiré
    des cartes FIFA (une teinte identifie la rareté au premier coup d'œil),
    mais volontairement pâle pour rester dans le thème clair du site plutôt
-   que des aplats saturés. */
-.meme-card.tier-common { background: linear-gradient(170deg, rgba(255, 255, 255, 0.72), rgba(16, 22, 28, 0.04)); }
-.meme-card.tier-rare { background: linear-gradient(170deg, rgba(255, 255, 255, 0.72), rgba(63, 182, 211, 0.14)); }
-.meme-card.tier-epic { background: linear-gradient(170deg, rgba(255, 255, 255, 0.72), rgba(255, 90, 31, 0.13)); }
-.meme-card.tier-legendary { background: linear-gradient(155deg, rgba(255, 255, 255, 0.6), rgba(255, 90, 31, 0.14), rgba(63, 182, 211, 0.14)); }
+   que des aplats saturés. Le blanc #fff en dernière couche (pas de la
+   transparence) est la base OPAQUE sur laquelle le dégradé teinté se pose
+   — sans lui, le fond de la page (wallpaper vidéo) transparaissait à
+   travers, rendant les teintes ternes et peu lisibles. */
+.meme-card.tier-common { background: linear-gradient(170deg, rgba(16, 22, 28, 0.05), rgba(16, 22, 28, 0.02)), #fff; }
+.meme-card.tier-rare { background: linear-gradient(170deg, rgba(63, 182, 211, 0.2), rgba(63, 182, 211, 0.06)), #fff; }
+.meme-card.tier-epic { background: linear-gradient(170deg, rgba(255, 90, 31, 0.18), rgba(255, 90, 31, 0.06)), #fff; }
+.meme-card.tier-legendary { background: linear-gradient(155deg, rgba(201, 151, 31, 0.22), rgba(243, 209, 122, 0.12)), #fff; }
 
 .meme-card-media {
   position: relative;
