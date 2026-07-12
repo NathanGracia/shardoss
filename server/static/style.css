@@ -171,7 +171,6 @@ header {
   text-shadow: 0 0 10px rgba(255, 159, 67, 0.55);
 }
 
-.cooloss-shard-pill { border-color: var(--tier-cooloss-border); background: rgba(168, 85, 247, 0.08); }
 .cooloss-shard-icon-small { width: 15px; height: 15px; display: block; object-fit: contain; }
 .dolloss-label { font-size: 11px; letter-spacing: 0.08em; color: rgba(16, 22, 28, 0.45); }
 /* Débit total (somme des points_per_sec des cartes débloquées) — collé au
@@ -458,6 +457,47 @@ main { padding: 0 0 40px; }
   border-top-color: rgba(16, 22, 28, 0.08);
 }
 
+/* Ligne "utiliser une shard cooloss" — même logique de dépliement que
+   .shard-count (masquée par défaut, révélée sur .selected), une vraie
+   rangée pleine largeur plutôt qu'une icône posée sur la ligne shards, et
+   affiche le stock directement dessus (seule source de cette info depuis
+   que la pastille de la navbar a été retirée, voir renderEconomyBar). */
+.cooloss-shard-use-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-height: 0;
+  padding: 0 12px;
+  border: none;
+  border-top: 1px solid transparent;
+  background: rgba(168, 85, 247, 0.08);
+  color: var(--tier-cooloss-text);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease, border-color 0.28s ease, background 0.15s ease;
+}
+.meme-card.selected .cooloss-shard-use-row {
+  max-height: 34px;
+  padding: 8px 12px;
+  opacity: 1;
+  border-top-color: rgba(168, 85, 247, 0.18);
+}
+.cooloss-shard-use-row:hover { background: rgba(168, 85, 247, 0.16); }
+.cooloss-shard-use-row:disabled { cursor: default; opacity: 0.6; }
+.cooloss-shard-use-row .cooloss-shard-icon-small { flex: none; }
+.cooloss-shard-use-label { flex: 1; text-align: left; }
+.cooloss-shard-use-stock {
+  font-weight: 600;
+  color: var(--tier-cooloss-text);
+  background: rgba(168, 85, 247, 0.18);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
@@ -626,29 +666,6 @@ main { padding: 0 0 40px; }
   background: linear-gradient(160deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08));
 }
 .cooloss-shard-reveal img { width: 56%; height: 56%; object-fit: contain; }
-
-/* Icône "utiliser une shard cooloss" — sur la même ligne que le compteur de
-   shards d'une carte verrouillée, pas une bande à part. */
-.cooloss-shard-use-icon {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: rgba(168, 85, 247, 0.15);
-  color: var(--tier-cooloss-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.cooloss-shard-use-icon img { width: 13px; height: 13px; object-fit: contain; }
-.cooloss-shard-use-icon:hover { background: rgba(168, 85, 247, 0.28); }
-.cooloss-shard-use-icon:disabled { cursor: default; opacity: 0.6; }
 
 /* ── Ouverture de booster : pack + révélation individuelle des shards ──── */
 @keyframes pack-pulse {

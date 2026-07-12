@@ -444,10 +444,6 @@ function renderEconomyBar(state) {
       <span class="dolloss-label hf-cond">DOLLOSS</span>
       <span class="dolloss-rate hf-mono">+${(state.points_per_sec_total || 0).toFixed(1)}/S</span>
     </div>
-    <div class="dolloss-pill cooloss-shard-pill" id="cooloss-shard-pill" title="Joker : permet de déverrouiller une shard sur n'importe quelle carte">
-      <img class="cooloss-shard-icon-small" src="cooloss-shard.png" alt="">
-      <span class="dolloss-value hf-mono" id="cooloss-shard-count">${state.cooloss_shards || 0}</span>
-    </div>
     <button class="booster-buy" id="booster-buy-btn">+ ACHETER UN BOOSTER</button>
   `;
   document.getElementById('booster-buy-btn').addEventListener('click', openBoosterModal);
@@ -555,8 +551,6 @@ async function buyCoolossShard() {
     const data = await r.json();
 
     animateDollossCounter(document.getElementById('dolloss-value'), data.dolloss);
-    const countPill = document.getElementById('cooloss-shard-count');
-    if (countPill) countPill.textContent = data.cooloss_shards;
     if (currentCollection) {
       currentCollection.dolloss = data.dolloss;
       currentCollection.cooloss_shards = data.cooloss_shards;
@@ -570,8 +564,8 @@ async function buyCoolossShard() {
     btn.textContent = '✓ ACHETÉ';
     setTimeout(() => { btn.textContent = prevText; btn.disabled = false; }, 900);
 
-    // Un nouveau bouton "utiliser une shard cooloss" peut désormais
-    // apparaître sur les cartes verrouillées de la grille.
+    // La ligne "utiliser une shard cooloss" peut désormais apparaître (ou
+    // afficher un stock à jour) sur les cartes verrouillées de la grille.
     renderGrid();
   } catch (_) {
     btn.textContent = prevText;
@@ -993,8 +987,6 @@ async function revealShard(ordered, index) {
     playImpactThump('cooloss');
     if (dot) { dot.classList.remove('active'); dot.classList.add('done'); dot.textContent = ''; dot.style.setProperty('--dot-glow', 'var(--tier-cooloss-bracket)'); }
 
-    const countPill = document.getElementById('cooloss-shard-count');
-    if (countPill) countPill.textContent = res.cooloss_shards;
     if (currentCollection) currentCollection.cooloss_shards = res.cooloss_shards;
 
     const isLast = index === ordered.length - 1;
@@ -1388,22 +1380,27 @@ async function renderCard(cardData) {
   shardCount.className = 'shard-count hf-mono';
   shardCount.textContent = `${cardData.shards_owned}/${cardData.shards_required} SHARDS`;
 
-  // Joker en stock : icône sur cette même ligne pour l'appliquer directement
-  // sur CETTE carte — n'apparaît que sur les cartes verrouillées (inutile
-  // une fois débloquée) et seulement si le joueur en possède au moins une.
-  if (!cardData.unlocked && currentCollection && currentCollection.cooloss_shards > 0) {
-    const useBtn = document.createElement('button');
-    useBtn.className = 'cooloss-shard-use-icon';
-    useBtn.innerHTML = '<img src="cooloss-shard.png" alt="">';
-    useBtn.title = 'Utiliser une shard cooloss';
-    useBtn.addEventListener('click', (e) => {
-      e.stopPropagation(); // sinon le clic remonte au listener de la carte et la désélectionne aussitôt
-      useCoolossShardOnCard(cardData.media_id, useBtn);
-    });
-    shardCount.appendChild(useBtn);
-  }
-
   el.appendChild(shardCount);
+
+  // Ligne dédiée (pas une icône sur la ligne shards) pour utiliser une
+  // shard cooloss — affiche le stock directement dessus, seule source de
+  // cette info désormais que la pastille de la navbar a été retirée (voir
+  // renderEconomyBar, allégée sur demande). N'apparaît que sur les cartes
+  // verrouillées et seulement si le joueur possède au moins un joker.
+  if (!cardData.unlocked && currentCollection && currentCollection.cooloss_shards > 0) {
+    const useRow = document.createElement('button');
+    useRow.className = 'cooloss-shard-use-row hf-mono';
+    useRow.innerHTML = `
+      <img class="cooloss-shard-icon-small" src="cooloss-shard.png" alt="">
+      <span class="cooloss-shard-use-label">UTILISER UNE SHARD COOLOSS</span>
+      <span class="cooloss-shard-use-stock">${currentCollection.cooloss_shards}</span>
+    `;
+    useRow.addEventListener('click', (e) => {
+      e.stopPropagation(); // sinon le clic remonte au listener de la carte et la désélectionne aussitôt
+      useCoolossShardOnCard(cardData.media_id, useRow);
+    });
+    el.appendChild(useRow);
+  }
 
   return el;
 }
@@ -1526,8 +1523,6 @@ async function useCoolossShardOnCard(mediaId, btn) {
     if (!r.ok) throw new Error('apply failed');
     const data = await r.json();
     if (currentCollection) currentCollection.cooloss_shards = data.cooloss_shards;
-    const countPill = document.getElementById('cooloss-shard-count');
-    if (countPill) countPill.textContent = data.cooloss_shards;
     // Recharge la grille entière : shards_owned/unlocked à jour pour cette
     // carte, et les boutons "utiliser" des autres cartes disparaissent si
     // le stock vient de tomber à 0.
