@@ -348,13 +348,13 @@ main { padding: 0 0 40px; }
 .meme-card.tier-rare { background: linear-gradient(170deg, rgba(63, 182, 211, 0.2), rgba(63, 182, 211, 0.06)), #fff; }
 .meme-card.tier-epic { background: linear-gradient(170deg, rgba(255, 90, 31, 0.18), rgba(255, 90, 31, 0.06)), #fff; }
 
-/* Essai : legendary en sombre plutôt qu'en or pâle comme les 3 autres —
-   carte "obsidienne", accents or. Comme le panneau passe en fond sombre,
-   tout le texte qui y vit (pensé encre foncée sur fond clair partout
-   ailleurs) doit être réécrit en clair ici, sinon illisible — même retour
-   d'expérience que la modale de reveal sombre abandonnée plus tôt cette
-   session. */
-.meme-card.tier-legendary { background: linear-gradient(155deg, #1c1712, #2a2015); }
+/* legendary en sombre plutôt qu'en or pâle comme les 3 autres — bleu nuit
+   profond (pas noir/obsidienne), accents or. Comme le panneau passe en
+   fond sombre, tout le texte qui y vit (pensé encre foncée sur fond clair
+   partout ailleurs) doit être réécrit en clair ici, sinon illisible —
+   même retour d'expérience que la modale de reveal sombre abandonnée plus
+   tôt cette session. */
+.meme-card.tier-legendary { background: linear-gradient(155deg, #0a1626, #163457); }
 .meme-card.tier-legendary .pps { color: rgba(255, 246, 224, 0.85); }
 .meme-card.tier-legendary .mult { color: rgba(255, 246, 224, 0.4); }
 .meme-card.tier-legendary .tier-badge {
