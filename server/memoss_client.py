@@ -22,6 +22,30 @@ class MediaStat:
         self.vote_count_sum = vote_count_sum
 
 
+def fetch_best_legend(media_id: str) -> dict | None:
+    """
+    Tire GET /api/shardoss/legend/{media_id} sur Memoss — meilleure légende
+    (réponse du jeu de mèmes) pour ce média, ou None s'il n'y en a aucune.
+    Contrairement à fetch_media_stats (batch quotidien, doit lever si Memoss
+    est injoignable), celle-ci est appelée à la demande depuis une requête
+    utilisateur — le caller (collection_router.py) attrape les erreurs et
+    retombe sur None plutôt que de faire échouer l'affichage de la carte
+    pour un simple flourish décoratif.
+    """
+    cfg = get_config()
+    base_url = cfg.get("memoss_base_url", "").rstrip("/")
+    api_key = cfg.get("memoss_api_key", "")
+    if not base_url or not api_key:
+        return None
+    resp = httpx.get(
+        f"{base_url}/api/shardoss/legend/{media_id}",
+        headers={"x-api-key": api_key},
+        timeout=10.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def fetch_media_stats() -> list[MediaStat]:
     """
     Tire GET /api/shardoss/stats sur Memoss — population complète des médias

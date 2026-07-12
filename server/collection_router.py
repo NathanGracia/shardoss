@@ -5,11 +5,16 @@ le solde de Dolloss affiché est calculé à la volée sans persister l'accrual)
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+import logging
+
 from auth import get_account_claims, require_account
 from db import get_session
 from economy import live_dolloss_balance, sum_points_per_sec, toast_color_stops
+import memoss_client
 from models import MemeCard, PlayerCollection, PlayerCurrency
 from shatter import fragments_for_player, get_or_generate_fragments
+
+log = logging.getLogger("shardoss")
 
 router = APIRouter(prefix="/api", tags=["collection"])
 
@@ -69,6 +74,22 @@ def get_fragments(
 
     fragments = get_or_generate_fragments(session, media_id, card.tier, card.shards_required)
     return fragments_for_player(fragments, coll.shards_owned)
+
+
+@router.get("/collection/{media_id}/legend")
+def get_legend(media_id: str, claims: dict = Depends(require_account)):
+    """
+    Meilleure légende (jeu de mèmes) pour ce média, tirée de Memoss à la
+    volée — décoratif seulement (ligne "Meilleure légende" affichée sur une
+    carte sélectionnée côté front), donc ne fait jamais échouer la requête
+    si Memoss est injoignable : retombe sur null dans ce cas plutôt que de
+    casser l'affichage de la carte pour ce flourish.
+    """
+    try:
+        return memoss_client.fetch_best_legend(media_id)
+    except Exception:
+        log.warning("légende introuvable pour %s", media_id, exc_info=True)
+        return None
 
 
 @router.get("/summary")

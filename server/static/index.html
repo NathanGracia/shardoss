@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=32">
+  <link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
   <video class="page-wallpaper" src="wallpaper.mp4?v=1" autoplay muted loop playsinline></video>
@@ -104,7 +104,25 @@
     </div>
   </div>
 
+  <!-- Modal générique de confirmation (remplace les confirm() natifs du
+       navigateur — voir showConfirmModal dans app.js) -->
+  <div class="modal-overlay" id="confirm-modal" hidden>
+    <div class="modal-card modal-card--narrow" id="confirm-modal-card">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title hf-cond" id="confirm-modal-title">CONFIRMER</div>
+        </div>
+        <button class="modal-close" id="confirm-modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="confirm-modal-body"></div>
+      <div class="modal-footer modal-footer--split">
+        <button class="modal-ok modal-ok--ghost" id="confirm-modal-cancel">ANNULER</button>
+        <button class="modal-ok" id="confirm-modal-confirm">CONFIRMER</button>
+      </div>
+    </div>
+  </div>
+
   <script src="account-widget.js?v=3"></script>
-  <script src="app.js?v=45"></script>
+  <script src="app.js?v=46"></script>
 </body>
 </html>

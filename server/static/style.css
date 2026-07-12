@@ -140,7 +140,7 @@ header {
 .economy-bar { display: flex; align-items: center; gap: 14px; }
 
 .meme-volume { display: flex; align-items: center; gap: 8px; }
-.meme-volume-icon { font-size: 14px; width: 18px; text-align: center; flex: none; }
+.meme-volume-icon { font-size: 14px; width: 18px; text-align: center; flex: none; cursor: pointer; }
 .meme-volume-slider {
   width: 90px;
   height: 4px;
@@ -498,6 +498,28 @@ main { padding: 0 0 40px; }
   border-radius: 5px;
 }
 
+/* Meilleure légende (jeu de mèmes, tirée de Memoss à la demande — voir
+   loadCardLegend dans app.js) — remplie/affichée seulement si une légende
+   existe pour ce média, pas de dépliement animé ici (contenu chargé de
+   façon asynchrone, un placeholder vide en cours de chargement serait plus
+   gênant qu'utile). */
+.card-legend {
+  padding: 8px 12px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(16, 22, 28, 0.55);
+  font-style: italic;
+  border-top: 1px solid rgba(16, 22, 28, 0.08);
+}
+.card-legend-label {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(16, 22, 28, 0.35);
+  margin-right: 4px;
+}
+.card-legend-author { font-style: normal; color: rgba(16, 22, 28, 0.4); }
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
@@ -560,6 +582,13 @@ main { padding: 0 0 40px; }
   background: var(--ink); color: #fff; font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
   cursor: pointer; border: none; width: 100%;
 }
+/* Deux boutons côte à côte (voir #confirm-modal) plutôt qu'un seul bouton
+   pleine largeur — ANNULER en secondaire, CONFIRMER garde le style plein. */
+.modal-footer--split { display: flex; gap: 10px; }
+.modal-footer--split .modal-ok { width: auto; flex: 1; }
+.modal-ok--ghost { background: rgba(16, 22, 28, 0.08); color: var(--ink); }
+.modal-card--narrow { width: 340px; }
+#confirm-modal-body { font-size: 14px; color: rgba(16, 22, 28, 0.7); font-family: 'IBM Plex Sans', sans-serif; line-height: 1.5; }
 
 .tier-change-row { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(16, 22, 28, 0.08); }
 .tier-change-row:last-child { border-bottom: none; padding-bottom: 0; }

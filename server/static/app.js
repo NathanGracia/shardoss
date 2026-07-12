@@ -17,17 +17,42 @@ const tierCursorKey = 'shardoss_tier_cursor';
 // nœud DOM devenant sinon une référence périmée.
 let selectedCardEl = null;
 
-function selectCard(el, video) {
+function selectCard(el, video, mediaId) {
   if (selectedCardEl && selectedCardEl !== el) selectedCardEl.classList.remove('selected');
   el.classList.add('selected');
   selectedCardEl = el;
   hoverInMemeAudio(video);
+  loadCardLegend(el, mediaId);
 }
 
 function deselectCard(el, video) {
   el.classList.remove('selected');
   if (selectedCardEl === el) selectedCardEl = null;
   hoverOutMemeAudio(video);
+  const legendRow = el.querySelector('.card-legend');
+  if (legendRow) { legendRow.hidden = true; legendRow.innerHTML = ''; }
+}
+
+// Chargée à la demande seulement au moment de la sélection (pas pour
+// toutes les cartes de la grille d'un coup) — décoratif, jamais bloquant :
+// une carte sans légende ou un Memoss injoignable laisse juste la ligne
+// masquée (voir /api/collection/{media_id}/legend, qui retombe déjà sur
+// null côté serveur dans ces cas).
+async function loadCardLegend(el, mediaId) {
+  const row = el.querySelector('.card-legend');
+  if (!row) return;
+  row.hidden = true;
+  try {
+    const r = await fetch(`/api/collection/${mediaId}/legend`);
+    if (!r.ok) return;
+    const legend = await r.json();
+    // La sélection a pu changer pendant l'attente (carte désélectionnée ou
+    // une autre sélectionnée) — ne pas afficher une légende périmée sur la
+    // mauvaise carte à ce stade.
+    if (!legend || selectedCardEl !== el) return;
+    row.innerHTML = `<span class="card-legend-label">MEILLEURE LÉGENDE</span> ${esc(legend.text)} <span class="card-legend-author">— ${esc(legend.pseudo)}</span>`;
+    row.hidden = false;
+  } catch (_) { /* décoratif, pas grave si ça rate */ }
 }
 
 // Toasts "+N" portés sur document.body (voir renderCard/setupLoopPop) —
@@ -147,18 +172,29 @@ function setupVolumeControl() {
   localStorage.removeItem(legacyMemeVolumeKey);
   localStorage.removeItem(legacyMusicVolumeKey);
 
-  const volume = getSharedVolume();
-  slider.value = volume;
-  icon.textContent = volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊';
-  slider.addEventListener('input', () => {
-    const v = parseFloat(slider.value);
+  // Dernier volume non-nul avant une coupure via l'icône — pour que
+  // recliquer restaure la valeur d'avant plutôt qu'un défaut arbitraire.
+  let lastNonZeroVolume = getSharedVolume() || 0.15;
+
+  function applyVolume(v) {
     setSharedVolume(v);
+    slider.value = v;
     icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+    if (v > 0) lastNonZeroVolume = v;
     // Applique en direct : le son du meme en cours de survol (s'il y en a
     // un) va au nouveau volume plein ; la musique reste à moitié si un
     // survol est en cours (ne casse pas le duck en cours), sinon au plein.
     if (audioFadeVideo) fadeVideoVolume(audioFadeVideo, v, 60);
     if (bgMusicAudio) fadeVideoVolume(bgMusicAudio, audioFadeVideo ? v * 0.5 : v, 60);
+  }
+
+  applyVolume(getSharedVolume());
+  slider.addEventListener('input', () => applyVolume(parseFloat(slider.value)));
+  // Icône cliquable = mute/unmute rapide, sans passer par le slider —
+  // rebascule sur le dernier volume non-nul plutôt que de remettre un
+  // défaut arbitraire.
+  icon.addEventListener('click', () => {
+    applyVolume(getSharedVolume() > 0 ? 0 : lastNonZeroVolume);
   });
 }
 
@@ -272,6 +308,28 @@ async function fetchMediaMeta(mediaId) {
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Modal de confirmation générique (remplace confirm() natif) ──────────
+// Une seule confirmation possible à la fois — cohérent avec le reste des
+// modales du site (une seule ouverte à la fois de toute façon).
+let confirmModalResolve = null;
+function showConfirmModal({ title, message, confirmLabel = 'CONFIRMER', cancelLabel = 'ANNULER' }) {
+  return new Promise((resolve) => {
+    confirmModalResolve = resolve;
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-body').textContent = message;
+    document.getElementById('confirm-modal-confirm').textContent = confirmLabel;
+    document.getElementById('confirm-modal-cancel').textContent = cancelLabel;
+    document.getElementById('confirm-modal').hidden = false;
+  });
+}
+function resolveConfirmModal(result) {
+  document.getElementById('confirm-modal').hidden = true;
+  if (confirmModalResolve) {
+    confirmModalResolve(result);
+    confirmModalResolve = null;
+  }
 }
 
 // ── Admin : loot tables ──────────────────────────────────────────────────
@@ -1314,7 +1372,7 @@ async function renderCard(cardData) {
     if (el.classList.contains('selected')) {
       deselectCard(el, video);
     } else {
-      selectCard(el, video);
+      selectCard(el, video, cardData.media_id);
     }
   });
 
@@ -1401,6 +1459,13 @@ async function renderCard(cardData) {
     });
     el.appendChild(useRow);
   }
+
+  // Rempli à la demande par loadCardLegend() au moment de la sélection —
+  // vide/masqué tant qu'on n'a pas cliqué la carte (voir selectCard).
+  const legendRow = document.createElement('div');
+  legendRow.className = 'card-legend hf-mono';
+  legendRow.hidden = true;
+  el.appendChild(legendRow);
 
   return el;
 }
@@ -1503,7 +1568,11 @@ function setupFilterTabs() {
 async function useCoolossShardOnCard(mediaId, btn) {
   // Ressource limitée (achetée ou lootée) — un mauvais clic ne doit pas la
   // dépenser sans confirmation.
-  if (!confirm('Utiliser une shard cooloss sur cette carte ?')) return;
+  const ok = await showConfirmModal({
+    title: 'UTILISER UNE SHARD COOLOSS',
+    message: 'Cette shard sera appliquée définitivement sur cette carte. Continuer ?',
+  });
+  if (!ok) return;
 
   const prevHtml = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
@@ -1611,6 +1680,10 @@ async function pollTierNotifications() {
     document.getElementById('admin-modal').hidden = true;
   });
   document.getElementById('admin-modal-save').addEventListener('click', saveAdminConfig);
+
+  document.getElementById('confirm-modal-confirm').addEventListener('click', () => resolveConfirmModal(true));
+  document.getElementById('confirm-modal-cancel').addEventListener('click', () => resolveConfirmModal(false));
+  document.getElementById('confirm-modal-close').addEventListener('click', () => resolveConfirmModal(false));
 
   // Le volume partagé dépend de AccountWidget.session (compte connecté ou
   // invité) — doit être chargé avant setupVolumeControl()/setupBackgroundMusic().
