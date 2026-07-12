@@ -37,6 +37,8 @@ def get_collection(claims: dict = Depends(require_account), session: Session = D
             "points_per_sec": card.points_per_sec,
             "quality_multiplier": card.quality_multiplier,
             "duration_seconds": card.duration_seconds,
+            "popularity_score": card.popularity_score,
+            "quality_score": card.quality_score,
             "shards_owned": coll.shards_owned,
             "shards_required": coll.shards_required,
             "unlocked": coll.unlocked,

@@ -1332,7 +1332,11 @@ function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
 
 async function renderCard(cardData) {
   const el = document.createElement('div');
-  el.className = 'meme-card';
+  // Classe de tier sur la carte elle-même : pilote le fond pâle "façon FIFA"
+  // sous le média (voir .meme-card.tier-* en CSS) — pas juste un accent
+  // ponctuel comme le badge, toute la zone d'info en dessous de la vidéo
+  // en porte la couleur.
+  el.className = `meme-card tier-${cardData.tier}`;
 
   const mediaEl = document.createElement('div');
   mediaEl.className = 'meme-card-media';
@@ -1439,6 +1443,17 @@ async function renderCard(cardData) {
   shardCount.textContent = `${cardData.shards_owned}/${cardData.shards_required} SHARDS`;
 
   el.appendChild(shardCount);
+
+  // Détail du score qui a déterminé le tier/points_per_sec de la carte —
+  // popularité brute (nombre de parties) et note moyenne (étoiles du jeu de
+  // mèmes), voir MemeCard.popularity_score/quality_score côté serveur.
+  const scoreRow = document.createElement('div');
+  scoreRow.className = 'card-score hf-mono';
+  scoreRow.innerHTML = `
+    <span>POPULARITÉ <strong>${cardData.popularity_score}</strong></span>
+    <span>NOTE <strong>${cardData.quality_score.toFixed(1)}</strong>/5</span>
+  `;
+  el.appendChild(scoreRow);
 
   // Ligne dédiée (pas une icône sur la ligne shards) pour utiliser une
   // shard cooloss — affiche le stock directement dessus, seule source de

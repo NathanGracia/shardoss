@@ -329,6 +329,18 @@ main { padding: 0 0 40px; }
   box-shadow: 0 0 0 2px var(--orange), 0 22px 44px rgba(16, 22, 28, 0.16);
 }
 
+/* Fond pâle par tier sous le média — .meme-card-media a son propre fond
+   opaque (vidéo/gradient) qui le recouvre entièrement, donc cette teinte
+   ne se voit QUE dans la zone d'info en dessous (band/shard-count/score/
+   légende), aucun de ces éléments n'ayant son propre fond opaque. Inspiré
+   des cartes FIFA (une teinte identifie la rareté au premier coup d'œil),
+   mais volontairement pâle pour rester dans le thème clair du site plutôt
+   que des aplats saturés. */
+.meme-card.tier-common { background: linear-gradient(170deg, rgba(255, 255, 255, 0.72), rgba(16, 22, 28, 0.04)); }
+.meme-card.tier-rare { background: linear-gradient(170deg, rgba(255, 255, 255, 0.72), rgba(63, 182, 211, 0.14)); }
+.meme-card.tier-epic { background: linear-gradient(170deg, rgba(255, 255, 255, 0.72), rgba(255, 90, 31, 0.13)); }
+.meme-card.tier-legendary { background: linear-gradient(155deg, rgba(255, 255, 255, 0.6), rgba(255, 90, 31, 0.14), rgba(63, 182, 211, 0.14)); }
+
 .meme-card-media {
   position: relative;
   height: 168px;
@@ -392,6 +404,20 @@ main { padding: 0 0 40px; }
 .meme-card-band .mult { justify-self: end; }
 .meme-card-band .pps { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; color: var(--ink); }
 .meme-card-band .mult { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: rgba(16, 22, 28, 0.45); }
+/* Badge de tier + multiplicateur masqués tant que la carte n'est pas
+   sélectionnée (clic) — visibility plutôt que display:none pour garder la
+   grille 1fr/auto/1fr stable (DOLLOSS/S ne saute pas de position quand ça
+   apparaît/disparaît). Ne touche QUE la grille normale (.meme-card) : le
+   même markup réutilisé dans le reveal spotlight (.shard-back, voir
+   assembleCard) garde son affichage complet en permanence. */
+.meme-card .meme-card-band .tier-badge,
+.meme-card .meme-card-band .mult {
+  visibility: hidden;
+}
+.meme-card.selected .meme-card-band .tier-badge,
+.meme-card.selected .meme-card-band .mult {
+  visibility: visible;
+}
 
 .tier-badge {
   font-family: 'Barlow Condensed', sans-serif;
@@ -452,6 +478,31 @@ main { padding: 0 0 40px; }
 }
 .meme-card.selected .shard-count {
   max-height: 40px;
+  padding: 6px;
+  opacity: 1;
+  border-top-color: rgba(16, 22, 28, 0.08);
+}
+
+/* Détail popularité/note (voir MemeCard.popularity_score/quality_score) —
+   même logique de dépliement que .shard-count. */
+.card-score {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(16, 22, 28, 0.4);
+  border-top: 1px solid transparent;
+  max-height: 0;
+  padding: 0 6px;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease, border-color 0.28s ease;
+}
+.card-score strong { color: rgba(16, 22, 28, 0.7); font-weight: 600; }
+.meme-card.selected .card-score {
+  max-height: 30px;
   padding: 6px;
   opacity: 1;
   border-top-color: rgba(16, 22, 28, 0.08);
