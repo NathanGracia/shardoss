@@ -348,37 +348,58 @@ main { padding: 0 0 40px; }
 .meme-card.tier-rare { background: linear-gradient(170deg, rgba(63, 182, 211, 0.2), rgba(63, 182, 211, 0.06)), #fff; }
 .meme-card.tier-epic { background: linear-gradient(170deg, rgba(255, 90, 31, 0.18), rgba(255, 90, 31, 0.06)), #fff; }
 
-/* legendary en sombre plutôt qu'en or pâle comme les 3 autres — bleu nuit
-   profond (pas noir/obsidienne), accents or. Comme le panneau passe en
-   fond sombre, tout le texte qui y vit (pensé encre foncée sur fond clair
-   partout ailleurs) doit être réécrit en clair ici, sinon illisible —
-   même retour d'expérience que la modale de reveal sombre abandonnée plus
-   tôt cette session. */
-.meme-card.tier-legendary { background: linear-gradient(155deg, #0a1626, #163457); }
-.meme-card.tier-legendary .pps { color: rgba(255, 246, 224, 0.85); }
-.meme-card.tier-legendary .mult { color: rgba(255, 246, 224, 0.4); }
+/* legendary : "alpenglow" — la lueur indigo-corail qui touche les plus
+   hauts sommets à l'aube/au crépuscule pendant que le reste du paysage
+   reste dans l'ombre, empruntée à l'identité "HUD alpin" du site plutôt
+   qu'un traitement sombre+or générique (les deux essais précédents,
+   obsidienne puis bleu nuit, restaient un cliché "carte premium" sans
+   lien avec le thème réel de l'app). Dégradé vertical (pas diagonal) pour
+   que chaque ligne de texte garde un contraste stable sur toute sa
+   largeur plutôt que de traverser plusieurs tons du dégradé. */
+.meme-card.tier-legendary {
+  background: linear-gradient(175deg, #241a3f 0%, #4a3568 38%, #8a4f66 68%, #b8603f 100%);
+}
+.meme-card.tier-legendary .pps { color: #fdf3e7; }
+.meme-card.tier-legendary .mult { color: rgba(253, 243, 231, 0.55); }
 .meme-card.tier-legendary .tier-badge {
-  color: var(--gold-light);
-  border-color: var(--gold);
-  background: rgba(201, 151, 31, 0.28);
+  color: #2a1c10;
+  border-color: transparent;
+  background: #ffcf8a;
+  font-weight: 700;
 }
 .meme-card.tier-legendary .shard-count,
 .meme-card.tier-legendary .card-score,
 .meme-card.tier-legendary .card-legend {
-  color: rgba(255, 246, 224, 0.65);
+  color: rgba(253, 243, 231, 0.75);
 }
-.meme-card.tier-legendary .card-score strong { color: var(--gold-light); }
-.meme-card.tier-legendary .card-legend-label { color: rgba(255, 246, 224, 0.4); }
-.meme-card.tier-legendary .card-legend-author { color: rgba(255, 246, 224, 0.5); }
+.meme-card.tier-legendary .card-score strong { color: #ffcf8a; }
+.meme-card.tier-legendary .card-legend-label { color: rgba(253, 243, 231, 0.5); }
+.meme-card.tier-legendary .card-legend-author { color: rgba(253, 243, 231, 0.6); }
 .meme-card.tier-legendary.selected .shard-count,
 .meme-card.tier-legendary.selected .card-score {
-  border-top-color: rgba(243, 209, 122, 0.22);
+  border-top-color: rgba(255, 207, 138, 0.25);
 }
-.meme-card.tier-legendary .card-legend { border-top-color: rgba(243, 209, 122, 0.18); }
-/* Liseré or plutôt qu'orange pour la sélection — l'orange jurait contre le
-   panneau sombre/or de cette carte. */
+.meme-card.tier-legendary .card-legend { border-top-color: rgba(255, 207, 138, 0.2); }
+/* Le violet du joker (--tier-cooloss-text) perd tout contraste sur le
+   terracotta chaud du bas du dégradé — éclairci pour cette carte
+   uniquement, sans toucher --tier-cooloss-text (utilisé ailleurs sur fond
+   clair). */
+.meme-card.tier-legendary .cooloss-shard-use-row {
+  background: rgba(168, 85, 247, 0.22);
+  color: #ecdcff;
+}
+.meme-card.tier-legendary .cooloss-shard-use-row:hover { background: rgba(168, 85, 247, 0.32); }
+.meme-card.tier-legendary .cooloss-shard-use-stock {
+  color: #fff;
+  background: rgba(168, 85, 247, 0.45);
+}
+.meme-card.tier-legendary.selected .cooloss-shard-use-row {
+  border-top-color: rgba(255, 207, 138, 0.2);
+}
+/* Liseré doré (lumière du sommet) plutôt qu'orange pour la sélection —
+   l'orange jurait contre le panneau. */
 .meme-card.tier-legendary.selected {
-  box-shadow: 0 0 0 2px var(--gold), 0 22px 44px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 2px #ffcf8a, 0 22px 44px rgba(36, 26, 63, 0.35);
 }
 
 .meme-card-media {
