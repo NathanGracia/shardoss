@@ -312,7 +312,7 @@ main { padding: 0 0 40px; }
 
 .meme-card {
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
+  background: #fff;
   border: 1px solid rgba(16, 22, 28, 0.12);
   box-shadow: 0 10px 24px rgba(16, 22, 28, 0.06);
   overflow: hidden;
@@ -334,73 +334,6 @@ main { padding: 0 0 40px; }
   box-shadow: 0 0 0 2px var(--orange), 0 22px 44px rgba(16, 22, 28, 0.16);
 }
 
-/* Fond pâle par tier sous le média — .meme-card-media a son propre fond
-   opaque (vidéo/gradient) qui le recouvre entièrement, donc cette teinte
-   ne se voit QUE dans la zone d'info en dessous (band/shard-count/score/
-   légende), aucun de ces éléments n'ayant son propre fond opaque. Inspiré
-   des cartes FIFA (une teinte identifie la rareté au premier coup d'œil),
-   mais volontairement pâle pour rester dans le thème clair du site plutôt
-   que des aplats saturés. Le blanc #fff en dernière couche (pas de la
-   transparence) est la base OPAQUE sur laquelle le dégradé teinté se pose
-   — sans lui, le fond de la page (wallpaper vidéo) transparaissait à
-   travers, rendant les teintes ternes et peu lisibles. */
-.meme-card.tier-common { background: linear-gradient(170deg, rgba(16, 22, 28, 0.05), rgba(16, 22, 28, 0.02)), #fff; }
-.meme-card.tier-rare { background: linear-gradient(170deg, rgba(63, 182, 211, 0.2), rgba(63, 182, 211, 0.06)), #fff; }
-.meme-card.tier-epic { background: linear-gradient(170deg, rgba(255, 90, 31, 0.18), rgba(255, 90, 31, 0.06)), #fff; }
-
-/* legendary : "alpenglow" — la lueur indigo-corail qui touche les plus
-   hauts sommets à l'aube/au crépuscule pendant que le reste du paysage
-   reste dans l'ombre, empruntée à l'identité "HUD alpin" du site plutôt
-   qu'un traitement sombre+or générique (les deux essais précédents,
-   obsidienne puis bleu nuit, restaient un cliché "carte premium" sans
-   lien avec le thème réel de l'app). Dégradé vertical (pas diagonal) pour
-   que chaque ligne de texte garde un contraste stable sur toute sa
-   largeur plutôt que de traverser plusieurs tons du dégradé. */
-.meme-card.tier-legendary {
-  background: linear-gradient(175deg, #241a3f 0%, #4a3568 38%, #8a4f66 68%, #b8603f 100%);
-}
-.meme-card.tier-legendary .pps { color: #fdf3e7; }
-.meme-card.tier-legendary .mult { color: rgba(253, 243, 231, 0.55); }
-.meme-card.tier-legendary .tier-badge {
-  color: #2a1c10;
-  border-color: transparent;
-  background: #ffcf8a;
-  font-weight: 700;
-}
-.meme-card.tier-legendary .shard-count,
-.meme-card.tier-legendary .card-score,
-.meme-card.tier-legendary .card-legend {
-  color: rgba(253, 243, 231, 0.75);
-}
-.meme-card.tier-legendary .card-score strong { color: #ffcf8a; }
-.meme-card.tier-legendary .card-legend-label { color: rgba(253, 243, 231, 0.5); }
-.meme-card.tier-legendary .card-legend-author { color: rgba(253, 243, 231, 0.6); }
-.meme-card.tier-legendary.selected .shard-count,
-.meme-card.tier-legendary.selected .card-score {
-  border-top-color: rgba(255, 207, 138, 0.25);
-}
-.meme-card.tier-legendary .card-legend { border-top-color: rgba(255, 207, 138, 0.2); }
-/* Le violet du joker (--tier-cooloss-text) perd tout contraste sur le
-   terracotta chaud du bas du dégradé — éclairci pour cette carte
-   uniquement, sans toucher --tier-cooloss-text (utilisé ailleurs sur fond
-   clair). */
-.meme-card.tier-legendary .cooloss-shard-use-row {
-  background: rgba(168, 85, 247, 0.22);
-  color: #ecdcff;
-}
-.meme-card.tier-legendary .cooloss-shard-use-row:hover { background: rgba(168, 85, 247, 0.32); }
-.meme-card.tier-legendary .cooloss-shard-use-stock {
-  color: #fff;
-  background: rgba(168, 85, 247, 0.45);
-}
-.meme-card.tier-legendary.selected .cooloss-shard-use-row {
-  border-top-color: rgba(255, 207, 138, 0.2);
-}
-/* Liseré doré (lumière du sommet) plutôt qu'orange pour la sélection —
-   l'orange jurait contre le panneau. */
-.meme-card.tier-legendary.selected {
-  box-shadow: 0 0 0 2px #ffcf8a, 0 22px 44px rgba(36, 26, 63, 0.35);
-}
 
 .meme-card-media {
   position: relative;

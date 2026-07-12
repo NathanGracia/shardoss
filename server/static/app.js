@@ -1329,11 +1329,7 @@ function setupLoopPop(video, mediaEl, counter, pointsPerSec) {
 
 async function renderCard(cardData) {
   const el = document.createElement('div');
-  // Classe de tier sur la carte elle-même : pilote le fond pâle "façon FIFA"
-  // sous le média (voir .meme-card.tier-* en CSS) — pas juste un accent
-  // ponctuel comme le badge, toute la zone d'info en dessous de la vidéo
-  // en porte la couleur.
-  el.className = `meme-card tier-${cardData.tier}`;
+  el.className = 'meme-card';
 
   const mediaEl = document.createElement('div');
   mediaEl.className = 'meme-card-media';
