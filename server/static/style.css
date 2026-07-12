@@ -347,7 +347,39 @@ main { padding: 0 0 40px; }
 .meme-card.tier-common { background: linear-gradient(170deg, rgba(16, 22, 28, 0.05), rgba(16, 22, 28, 0.02)), #fff; }
 .meme-card.tier-rare { background: linear-gradient(170deg, rgba(63, 182, 211, 0.2), rgba(63, 182, 211, 0.06)), #fff; }
 .meme-card.tier-epic { background: linear-gradient(170deg, rgba(255, 90, 31, 0.18), rgba(255, 90, 31, 0.06)), #fff; }
-.meme-card.tier-legendary { background: linear-gradient(155deg, rgba(201, 151, 31, 0.22), rgba(243, 209, 122, 0.12)), #fff; }
+
+/* Essai : legendary en sombre plutôt qu'en or pâle comme les 3 autres —
+   carte "obsidienne", accents or. Comme le panneau passe en fond sombre,
+   tout le texte qui y vit (pensé encre foncée sur fond clair partout
+   ailleurs) doit être réécrit en clair ici, sinon illisible — même retour
+   d'expérience que la modale de reveal sombre abandonnée plus tôt cette
+   session. */
+.meme-card.tier-legendary { background: linear-gradient(155deg, #1c1712, #2a2015); }
+.meme-card.tier-legendary .pps { color: rgba(255, 246, 224, 0.85); }
+.meme-card.tier-legendary .mult { color: rgba(255, 246, 224, 0.4); }
+.meme-card.tier-legendary .tier-badge {
+  color: var(--gold-light);
+  border-color: var(--gold);
+  background: rgba(201, 151, 31, 0.28);
+}
+.meme-card.tier-legendary .shard-count,
+.meme-card.tier-legendary .card-score,
+.meme-card.tier-legendary .card-legend {
+  color: rgba(255, 246, 224, 0.65);
+}
+.meme-card.tier-legendary .card-score strong { color: var(--gold-light); }
+.meme-card.tier-legendary .card-legend-label { color: rgba(255, 246, 224, 0.4); }
+.meme-card.tier-legendary .card-legend-author { color: rgba(255, 246, 224, 0.5); }
+.meme-card.tier-legendary.selected .shard-count,
+.meme-card.tier-legendary.selected .card-score {
+  border-top-color: rgba(243, 209, 122, 0.22);
+}
+.meme-card.tier-legendary .card-legend { border-top-color: rgba(243, 209, 122, 0.18); }
+/* Liseré or plutôt qu'orange pour la sélection — l'orange jurait contre le
+   panneau sombre/or de cette carte. */
+.meme-card.tier-legendary.selected {
+  box-shadow: 0 0 0 2px var(--gold), 0 22px 44px rgba(0, 0, 0, 0.35);
+}
 
 .meme-card-media {
   position: relative;
